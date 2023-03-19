@@ -8,7 +8,7 @@
 -- Created   : 28/03/2019
 -- Last Edit : 19/03/2023
 
--- 20230319 : Name of volume control changed from Headphones to Master, required
+-- 20230319 : Name of volume control changed from Headphones to PCM, required
 -- as a result of Pi OS update.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
 -- 20220124 : Pragma Warnings added to suppress warning related to potential
@@ -48,7 +48,7 @@ package body Chime is
      To_Unbounded_String ("/usr/bin/aplay -q ");
    -- full path required, not necessarily in root path.
    Volume_Command : constant Commands :=
-     To_Unbounded_String ("/usr/bin/amixer -q -M set Master ");
+     To_Unbounded_String ("/usr/bin/amixer -q -M sset PCM ");
    -- The switches -q and -M supress output and lineraise the volume change to
    -- match hearing.
 

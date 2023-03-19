@@ -3,7 +3,7 @@
 -- Created   : 28/06/2019
 -- Last Edit : 19/03/2023
 
--- 20230319 : Name of volume control changed from Headphones to Master, required
+-- 20230319 : Name of volume control changed from Headphones to PCM, required
 -- as a result of Pi OS update.
 -- 20220922 : UI_Server termination mechanism changed.
 -- 20220920 :  User initiated shutdown moved to main loop.
