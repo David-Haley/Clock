@@ -1,8 +1,10 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 22/09/2022
+-- Last Edit : 19/03/2023
 
+-- 20230319 : Name of volume control changed from Headphones to Master, required
+-- as a result of Pi OS update.
 -- 20220922 : UI_Server termination mechanism changed.
 -- 20220920 :  User initiated shutdown moved to main loop.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
@@ -33,7 +35,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20220922";
+   Clock_Version : constant Version_String := "20230319";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,
