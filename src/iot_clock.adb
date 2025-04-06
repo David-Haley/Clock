@@ -1,7 +1,10 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 20/09/2022
+-- Last Edit : 06/04/2025
+
+-- 20250406 : General_Configuration added, default volume now configurable.
+-- Start and end dates for daylight saving added to secobdary display.
 -- 20220920 : User initiated shutdown moved to main loop.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
@@ -41,6 +44,7 @@ with Linux_Signals; use Linux_signals;
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with LED_Declarations; use LED_Declarations;
 with Clock_Driver; use Clock_Driver;
+with General_Configuration; use General_Configuration;
 with Brightness; use Brightness;
 with Chime; use Chime;
 with Secondary_Display; use Secondary_Display;
@@ -52,21 +56,20 @@ procedure IOT_Clock is
    use Clock_LEDs;
 
    Update_Interval : constant Duration := 0.125; -- 125ms
-   -- 8 Hz update rate, primarilly for sweep animation
+   -- 8 Hz update rate, primarily for sweep animation
 
    package Real_Numerics is new
      Ada.Numerics.Generic_Elementary_Functions (Real);
 
    use Real_Numerics;
 
-   procedure Initialise_Hardware (Brighness_Record : in Brighness_Records) is
+   procedure Initialise_Hardware (Dot_Correction : in Dot_Corrections) is
 
    begin -- Initialise_Hardware
       Bind_Pin (X_Error, In_Pin);
       for Driver in LED_Drivers loop
          for LED in LED_Channels loop
-            Set_Correction (Driver, LED,
-                            Brighness_Record.Dot_Correction (Driver, LED));
+            Set_Correction (Driver, LED, Dot_Correction (Driver, LED));
          end loop; -- LED in LED_Channels
       end loop; -- LED in LED_Channels
       Write_Corrections;
@@ -181,20 +184,20 @@ procedure IOT_Clock is
       -- DP driver is assigned to automatic brightness
    end Update_Primary;
 
-   Brighness_Record : Brighness_Records := Read_Brightness_Config;
+   Dot_Correction : Dot_Corrections := Read_Brightness_Config;
    Next_Time : Time := Truncate_Second (Clock + 1.0) + Update_Interval;
    -- First loop execution delayed such that the loop will at 00 subseconds plus
    -- a multiple of the Update Interval and not in the past (+1s).
    Time_Step : Duration := 3.0;
    -- This is the naximum NTP correction which will allow clock to run all
    -- display updates.
-   Display_Brightness : Lit_Greyscales := Brighness_Record.Minimum_Brightness;
+   Display_Brightness : Lit_Greyscales := Minimum_Brightness;
 
 begin -- IOT_Clock
    Handlers.Install;
    Start_Events;
    Put_Event ("IOT_Clock version " & Clock_Version & " started");
-   Initialise_Hardware (Brighness_Record);
+   Initialise_Hardware (Dot_Correction);
    Initialise_Secondary_Display;
    loop -- 8 Hz loop
       delay until Next_Time;
@@ -204,7 +207,7 @@ begin -- IOT_Clock
          Next_Time := Truncate_Second (Clock + 1.0) + Update_Interval;
          delay until Next_Time;
       end if; --  Clock < Next_Time - Time_Step or Clock > Next_Time + Time_Step
-      Update_Sweep (Next_Time, Display_Brightness, Brighness_Record.Gamma);
+      Update_Sweep (Next_Time, Display_Brightness, Gamma);
       Update_Primary (Next_Time, Display_Brightness);
       if Sub_Second (Next_Time) < Update_Interval then
          -- Secondary display stepped forward once per second.
@@ -212,17 +215,16 @@ begin -- IOT_Clock
       else
          Update_Secondary (Next_Time, Display_Brightness);
       end if; -- Sub_Second (Next_Time) < Update_Interval
-      if Get_Ambient_Light > Brighness_Record.Minimum_Brightness then
+      if Get_Ambient_Light > Minimum_Brightness then
          Display_Brightness := Get_Ambient_Light;
       else
-         Display_Brightness := Brighness_Record.Minimum_Brightness;
-      end if; -- Get_Ambient_Light > Brighness_Record.Minimum_Brightness
-      if Display_Brightness > Brighness_Record.Chime_Brightness and
-        Get_Chime_Toggle then
+         Display_Brightness := Minimum_Brightness;
+      end if; -- Get_Ambient_Light > Minimum_Brightness
+      if Display_Brightness > Minimum_Chime and Get_Chime_Toggle then
          Chiming;
       else
          Silent;
-      end if; -- Display_Brightness > Brighness_Record.Chime_Brightness and .,.
+      end if; -- Display_Brightness > Chime_Brightness and Get_Chime_Toggle
       Write_LEDs;
       -- Report status to user interface
       for D in LED_Drivers loop

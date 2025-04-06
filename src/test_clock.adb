@@ -1,9 +1,9 @@
-
 -- Test program for the clock hardware.
 -- Author    : David Haley
 -- Created   : 07/07/2019
--- Last Edit : 09/06/2022
+-- Last Edit : 06/05/2022
 
+-- 20250406 : updated to reflect chanhes to Brightness.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
 -- 20220119 : End_Ambient_Light no longer required.
@@ -58,8 +58,6 @@ procedure Test_Clock is
 
       package Sound_Indices_IO is new Ada.Text_IO.Integer_IO (Sound_Indices);
 
-
-
    begin -- Test_Sound
       loop -- process one test request
          Clear_Screen;
@@ -106,20 +104,19 @@ procedure Test_Clock is
       LED_Start : constant Y_Pos := 1;
       Test_Column : constant X_Pos := 50;
       Main_Base : constant Natural := Character'Pos ('a');
-      Brighness_Record : Brighness_Records := Read_Brightness_Config;
+      Dot_Correction : Dot_Corrections := Read_Brightness_Config;
       Test_Requested : Character;
       Current_Driver : LED_Drivers;
       Current_LED : LED_Channels;
 
-      procedure Initialialise_LEDs (Brighness_Record : in Brighness_Records) is
+      procedure Initialialise_LEDs (Dot_Correction : in Dot_Corrections) is
 
       begin -- Initialialise_LEDs
          Blank_LEDs;
          for Current_Driver in LED_Drivers loop
             for Current_LED in LED_Channels loop
                Set_Correction (Current_Driver, Current_LED,
-                               Brighness_Record.Dot_Correction (Current_Driver,
-                                 Current_LED));
+                               Dot_Correction (Current_Driver, Current_LED));
                Set_Greyscale (Current_Driver, Current_LED, 0);
             end loop; -- Current_LED in LED_Channels
          end loop; --Current_Driver in LED_Drivers
@@ -146,7 +143,7 @@ procedure Test_Clock is
 
       procedure Get_Correction (Current_Driver : in LED_Drivers;
                                 Current_LED : in LED_Channels;
-                                Brighness_Record : in out Brighness_Records) is
+                                Dot_Correction : in out Dot_Corrections) is
 
          Correction : Corrections;
 
@@ -158,8 +155,7 @@ procedure Test_Clock is
          Goto_XY (Test_Column, Prompt_Row);
          Put ("Correction? ");
          Correction_IO.Get (Correction);
-         Brighness_Record.Dot_Correction (Current_Driver, Current_LED) :=
-           Correction;
+         Dot_Correction (Current_Driver, Current_LED) := Correction;
          Set_Correction (Current_Driver, Current_LED, Correction);
          Write_Corrections;
          Display_LED (Current_Driver, Current_LED);
@@ -169,7 +165,7 @@ procedure Test_Clock is
       end Get_Correction;
 
       function Get_Test (Prompt_X : in X_Pos;
-                        Prompt_Text : in String := "Test? ") return Character is
+                         Prompt_Text : in String := "Test? ") return Character is
 
          Result : Character;
 
@@ -196,7 +192,7 @@ procedure Test_Clock is
       end Put_Message;
 
    begin -- Test_LED
-      Initialialise_LEDs (Brighness_Record);
+      Initialialise_LEDs (Dot_Correction);
       loop -- Driver Selection
          Clear_Screen;
          Goto_XY (X_Pos'First, Y_Pos'First);
@@ -245,7 +241,7 @@ procedure Test_Clock is
                      case Test_Requested is
                         when 's' | 'S' =>
                            exit;
-                        when '1' =>
+                           when '1' =>
                            Set_Greyscale (Current_Driver, Current_LED, 4095);
                            Write_LEDs;
                         when '0' =>
@@ -253,9 +249,9 @@ procedure Test_Clock is
                            Write_LEDs;
                         when 'c' | 'C' =>
                            Get_Correction (Current_Driver, Current_LED,
-                                           Brighness_Record);
+                                           Dot_Correction);
                         when 'u' | 'U' =>
-                           Write_Brightness_Config (Brighness_Record);
+                           Write_Brightness_Config (Dot_Correction);
                         when others =>
                            Put_Message (Test_Column, "Invalid Request: " &
                                           Test_Requested);
@@ -347,7 +343,7 @@ begin -- Test_Clock
    loop -- one test
       Clear_Screen;
       Goto_XY (X_Pos'First, Y_Pos'First);
-      Put_Line ("Clock Hardware Test version 20190716 (Main Menu)");
+      Put_Line ("Clock Hardware Test version 20250406 (Main Menu)");
       Put_Line ("0: End Tests");
       Put_line ("1: Test Sound");
       Put_line ("2: Test LEDs");
@@ -357,7 +353,7 @@ begin -- Test_Clock
       case Test_Requested is
          when '0' =>
             exit;
-         when '1' =>
+            when '1' =>
             Test_Sound;
          when '2' =>
             Test_LED;

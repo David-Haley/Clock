@@ -1,8 +1,10 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 19/03/2023
+-- Last Edit : 06/05/2025
 
+-- 20250406 : General_Configuration added, default volume now configurable.
+-- Start and end dates for daylight saving added to secobdary display.
 -- 20230319 : Name of volume control changed from Headphones to PCM, required
 -- as a result of Pi OS update.
 -- 20220922 : UI_Server termination mechanism changed.
@@ -35,7 +37,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20230319";
+   Clock_Version : constant Version_String := "20250406";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,

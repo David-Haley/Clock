@@ -3,7 +3,11 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 20/08/2022
+-- Last Edit : 06/04/2025
+
+-- 20250406 : Support for start and end timed for daylight saving added,
+-- automatic reloading of the secondary display added and conversion from a
+-- vector to a list.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
@@ -35,12 +39,11 @@
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Directories; use Ada.Directories;
-with Ada.Calendar; use Ada.Calendar;
 with Ada.Calendar.Time_Zones; use Ada.Calendar.Time_Zones;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with Ada.Containers; use Ada.Containers;
+with Ada.Containers.Doubly_Linked_Lists;
 with Ada.Exceptions; use Ada.Exceptions;
-with Ada.Containers.Vectors;
 with Ada.Strings; use Ada.Strings;
 with Ada.Strings.Fixed; use Ada.Strings.Fixed;
 with Ada.Strings.Maps; use Ada.Strings.Maps;
@@ -62,30 +65,7 @@ package body Secondary_Display is
                           Arbitary, Blank);
    subtype Date_Formats is Display_Items range DDMMYY .. YYMMDD;
 
-   subtype Item_Indices is Positive;
-
-   package Item_Arrays is new Ada.Containers.Vectors (Item_Indices,
-                                                      Unbounded_String);
-   use Item_Arrays;
-
    use Clock_LEDs;
-
-   File_Name : constant String := "Secondary.csv";
-   Text_File : File_Type;
-
-   Item_Array : Item_Arrays.Vector := Empty_Vector;
-
-   procedure Initialise_Secondary_Display is
-
-   begin -- Initialise_Secondary_Display
-      if Exists (File_Name) then
-         Open (Text_File, In_File, File_Name);
-         while not End_Of_File (Text_File) loop
-            Append (Item_Array, Get_Line (Text_File));
-         end loop; -- End_Of_File (Text_File)
-         Close (Text_File);
-      end if; -- Exists (File_Name)
-   end Initialise_Secondary_Display;
 
    procedure Blank is
 
@@ -145,7 +125,7 @@ package body Secondary_Display is
       end case; -- Format
    exception
       when Event: Others =>
-         Put_Error ("Error in Date item", Event);
+         Put_Error ("Error in Date item " & Format'Img & " - ", Event);
          raise;
    end Update_Date;
 
@@ -165,20 +145,44 @@ package body Secondary_Display is
       Second : Second_Number;
       Sub_Second : Second_Duration;
       Leap_Second : Boolean;
-      UTC_Offset : Time_Offset;
+      UTC_Offset_1, UTC_Offset_2 : Time_Offset;
+      Start_Time, End_Time : Time;
+      Defined : Boolean := False;
 
    begin -- Update_Time
       Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-      UTC_Offset := Time_Offset'Value (Slice (Text, First, Last));
-      Split (Current_Time, Year, Month, Day,
-             Hour, Minute, Second, Sub_Second,
-             Leap_Second, UTC_Offset);
-      Set_Digit (Tens_Days, Hour / 10, Display_Brightness);
-      Set_Digit (Units_Days, Hour mod 10, Display_Brightness);
-      Set_Digit (Tens_Months, Minute / 10, Display_Brightness);
-      Set_Digit (Units_Months, Minute mod 10, Display_Brightness);
-      Set_Digit (Tens_Years, Second / 10, Display_Brightness);
-      Set_Digit (Units_Years, Second mod 10, Display_Brightness);
+      Start_Time := Value (Slice (Text, First, Last), 0);
+      Start_At := Last + 1;
+      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+      UTC_Offset_1 := Time_Offset'Value (Slice (Text, First, Last));
+      Start_At := Last + 1;
+      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+      End_Time := Value (Slice (Text, First, Last), 0);
+      Start_At := Last + 1;
+      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+      UTC_Offset_2 := Time_Offset'Value (Slice (Text, First, Last));
+      if Clock > Start_Time then
+         Split (Current_Time, Year, Month, Day,
+                Hour, Minute, Second, Sub_Second,
+                Leap_Second, UTC_Offset_1);
+         Defined := True;
+      end if; -- Clock > Start_Time
+      if Clock > End_Time then
+         Split (Current_Time, Year, Month, Day,
+                Hour, Minute, Second, Sub_Second,
+                Leap_Second, UTC_Offset_2);
+         Defined := True;
+      end if; -- Clock > End_Time
+      if Defined then
+         Set_Digit (Tens_Days, Hour / 10, Display_Brightness);
+         Set_Digit (Units_Days, Hour mod 10, Display_Brightness);
+         Set_Digit (Tens_Months, Minute / 10, Display_Brightness);
+         Set_Digit (Units_Months, Minute mod 10, Display_Brightness);
+         Set_Digit (Tens_Years, Second / 10, Display_Brightness);
+         Set_Digit (Units_Years, Second mod 10, Display_Brightness);
+      else
+         Blank;
+      end if; -- Defined
    exception
       when Event: Others =>
          Put_Error ("Error in Time item", Event);
@@ -327,11 +331,44 @@ package body Secondary_Display is
          raise;
    end Update_Arbitary;
 
+   package Item_Lists is new
+     Ada.Containers.Doubly_Linked_Lists (Unbounded_String);
+   use Item_Lists;
+
    -- State variables of Update_Secondary and Resync_Secondary.
-   Item_Index : Item_Indices := Item_Indices'First;
+   File_Name : constant String := "Secondary.csv";
+   File_Time : Time;
+   Item_List : Item_Lists.List := Empty_List;
+   Item_Cursor : Item_Lists.Cursor := First (Item_List);
+   Item_Number : Positive := 1;
    Time_Remaining : Second_Number := Second_Number'First;
    Dynamic, First_Run, First_Time : Boolean := True;
-   Run : Boolean := False;
+   Run, File_Read : Boolean := False;
+
+   procedure Initialise_Secondary_Display is
+
+      Text_File : File_Type;
+
+   begin -- Initialise_Secondary_Display
+      begin -- File open exception block
+         Open (Text_File, In_File, File_Name);
+      exception
+         when others =>
+            null;
+      end; -- File open exception block
+      -- Rather than simply testing that the file exists opening the file shows
+      -- that it is exists and is not locked due to being currently edited.
+      if Is_Open (Text_File) then
+         Clear (Item_List);
+         while not End_Of_File (Text_File) loop
+            Append (Item_List, Get_Line (Text_File));
+         end loop; -- End_Of_File (Text_File)
+         File_Time := Modification_Time (File_Name);
+         Close (Text_File);
+      else
+         Blank;
+      end if; -- Exists (File_Name)
+   end Initialise_Secondary_Display;
 
    procedure Update_Secondary (Current_Time : in Time;
                                Display_Brightness : in Greyscales;
@@ -344,8 +381,9 @@ package body Secondary_Display is
       Item_Duration : Second_Number;
 
    begin -- Update_Secondary
-      Run := Run or ((Second (Current_Time) = 0 and Length (Item_Array) > 0));
-      -- Syncronise first run with 0 seconds
+      Run := (Run or Second (Current_Time) = 0) and Length (Item_List) > 0;
+      -- Syncronise first run with 0 seconds, stop if the list ie empty or
+      -- becomes empty.
       if Run then
          -- something to display
          if Dynamic and Step_Display and not First_Run then
@@ -357,17 +395,21 @@ package body Secondary_Display is
             else
                -- select the new item
                First_Time := True;
-               if Item_Index < Item_Indices (Length (Item_Array)) then
-                  -- more items in list
-                  Item_Index := Item_Index + 1;
+               Next (Item_Cursor);
+               if Item_Cursor /= Item_Lists.No_Element then
+                  Item_Number := @ + 1;
                else
-                  -- restart at the beginning
-                  Item_Index := Item_Indices'First;
-               end if; -- more items in list
+                  if File_Time /= Modification_Time (File_Name) then
+                     -- The secondary file has been replaced or modified.
+                     Initialise_Secondary_Display;
+                  end if; -- File_Time /= Modification_Time (File_Name)
+                  Item_Cursor := Item_Lists.First (Item_List);
+                  Item_Number := 1;
+               end if; -- Item_Cursor /= Item_Lists.No_Element
             end if; --  Time_Remaining > 1
          end if; --  Dynamic and Step_Display and not First_Run
          -- parse current item
-         Text := Item_Array (Item_Index);
+         Text := Item_List (Item_Cursor);
          Report_Current_Item (Head (To_String (Text), UI_Strings'Length, ' '));
          Start_At := 1;
          Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
@@ -398,10 +440,13 @@ package body Secondary_Display is
                Blank;
          end case; -- Display_Item
          First_Run := False;
+      elsif Step_Display then
+         -- Only test that the file has become available once per second.
+         Initialise_Secondary_Display;
       end if; -- Run
    exception
       when Event: Others =>
-         Put_Error ("Error at line :" & Item_Indices'Image (Item_Index) &
+         Put_Error ("Error at line :" & Item_Number'Img &
                       " Character:" & First'Img, Event);
    end Update_Secondary;
 
@@ -409,7 +454,8 @@ package body Secondary_Display is
       -- causes secondary display to be cleared and restartes at 00 seconds.
 
    begin -- Resync_Secondary
-      Item_Index := Item_Indices'First;
+      Item_Cursor := Item_Lists.First (Item_List);
+      Item_Number := 1;
       Time_Remaining := Second_Number'First;
       Dynamic := True;
       First_Run := True;

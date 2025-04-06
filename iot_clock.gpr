@@ -1,0 +1,19 @@
+project Iot_Clock is
+
+   for Source_Dirs use ("src", "../DJH/src", "../DJH/src", "../Pi_Common/src", "../Pi_Common_C/src");
+   for Object_Dir use "obj";
+   for Main use ("clock_ui.adb", "iot_clock.adb", "test_chime.adb", "test_clock.adb", "test_spawn.adb");
+   for Languages use ("Ada", "C");
+
+   package Compiler is
+      for Switches ("c") use ("-g", "-Wall", "-ansi");
+      for Switches ("ada") use ("-gnat2022", "-g", "-gnato", "-fstack-check", "-gnatE", "-gnatf", "-gnatVa");
+   end Compiler;
+
+   package Linker is
+      for Switches ("c") use ("-g");
+      for Switches ("ada") use ("-g");
+   end Linker;
+
+end Iot_Clock;
+

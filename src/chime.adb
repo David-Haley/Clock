@@ -6,8 +6,9 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 19/03/2023
+-- Last Edit : 06/04/2025
 
+-- 20250406 : Default_Volume now read from General_Configuration.
 -- 20230319 : Name of volume control changed from Headphones to PCM, required
 -- as a result of Pi OS update.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
@@ -37,6 +38,7 @@ with Ada.Containers.Unbounded_Synchronized_Queues;
 with GNAT.OS_Lib; use GNAT.OS_Lib;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with User_Interface_Server; use User_Interface_Server;
+with General_Configuration; use General_Configuration;
 
 package body Chime is
 
@@ -89,7 +91,7 @@ package body Chime is
 
       Chiming_Enabled : Boolean := False;
       Chime_List : Chime_Lists := (others => Null_Unbounded_String);
-      Current_Volume : Chime_Volumes := 50;
+      Current_Volume : Chime_Volumes := Default_Volume;
 
    end Chime_State;
 
