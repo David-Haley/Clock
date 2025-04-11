@@ -2,8 +2,9 @@
 
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 10/04/2025
+-- Last Edit : 11/04/2025
 
+-- 20250411 : Corrected Minimum_Chime return value
 -- 20250410 : Read_General_Configuration, Play_Command and Volume_Command added.
 
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -101,7 +102,7 @@ package body General_Configuration is
          -- Returns mimimum brightness level at which chiming should occur.
 
       begin -- Minimum_Chime
-         G := Prot_Minimum_Brightness;
+         G := Prot_Minimum_Chime;
       end Minimum_Chime;
 
       entry Gamma (G : out Gammas) when Defined is
