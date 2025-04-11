@@ -1,9 +1,13 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 06/04/2025
+-- Last Edit : 11/04/2025
 
--- 20250406 : General_Configuration added, default volume now configurable.
+-- 20250411 : Correction of Spelling of Arbitrary, reporting of all
+-- configuration file modification times, Play_Command and Volume_Command now
+-- read from general configuration file, Time_Zone now supports multiple changes
+-- in UTC offset.
+-- 20250407 : General_Configuration added, default volume now configurable.
 -- Start and end dates for daylight saving added to secobdary display.
 -- 20220920 : User initiated shutdown moved to main loop.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
@@ -17,8 +21,8 @@
 -- 20220115 : Error and event handiing centralised. Primary and Secondary
 -- display brightness updated when sweep updated.
 -- 20191111 : The time step for which all updates are run is reduced to 3.0 s.
--- Thus if any correction in time greter than 3.0 s occurs the secondary display
--- will also be resynchronised.
+-- Thus if any correction in time greater than 3.0 s occurs the secondary
+-- display will also be resynchronised.
 -- 20190726 : Clock_Driver used. Code added to manage large steps in time
 -- without requiring too many display updates.
 -- 20190725 : Build with user interface
@@ -195,7 +199,6 @@ procedure IOT_Clock is
 
 begin -- IOT_Clock
    Handlers.Install;
-   Start_Events;
    Put_Event ("IOT_Clock version " & Clock_Version & " started");
    Initialise_Hardware (Dot_Correction);
    Initialise_Secondary_Display;

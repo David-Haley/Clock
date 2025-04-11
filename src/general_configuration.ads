@@ -1,7 +1,10 @@
+-- This package reads the general clock confifuration;
+
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 06/04/202
--- This package reads the general clock confifuration;
+-- Last Edit : 10/04/2025
+
+-- 202504010: Read_General_Configuration, Play_Command and Volume_Command added.
 
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with Shared_User_Interface; use Shared_User_Interface;
@@ -24,5 +27,13 @@ package General_Configuration is
 
    function Default_Volume return Chime_Volumes;
    -- The initial chime volume of the clock when started.
+
+   function Play_Command return String;
+   -- Returns the command line string used to invoke the sound player
+   -- application.
+
+   function Volume_Command return String;
+   -- Returns the command line string used to invoke the volume control
+   -- appliation.
 
 end General_Configuration;

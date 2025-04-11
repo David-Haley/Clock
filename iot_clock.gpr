@@ -10,6 +10,11 @@ project Iot_Clock is
       for Switches ("ada") use ("-gnat2022", "-g", "-gnato", "-fstack-check", "-gnatE", "-gnatf", "-gnatVa");
    end Compiler;
 
+-- Uncomment the lines below if it is necessary to debug elaboration
+--   package Binder is
+--     for Switches ("ada") use ("-e", "-l");
+--   end Binder;
+
    package Linker is
       for Switches ("c") use ("-g");
       for Switches ("ada") use ("-g");

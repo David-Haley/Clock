@@ -6,8 +6,11 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 06/04/2025
+-- Last Edit : 09/04/2025
 
+-- 20250409 : Ude of DJH.Parse_CSV and reporting of the Chimes.csv file
+-- date/time via Put_Event added. The Volume_Command and Play Command are now
+-- read from the general configuration file.
 -- 20250406 : Default_Volume now read from General_Configuration.
 -- 20230319 : Name of volume control changed from Headphones to PCM, required
 -- as a result of Pi OS update.
@@ -36,9 +39,10 @@ with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with Ada.Containers.Synchronized_Queue_Interfaces;
 with Ada.Containers.Unbounded_Synchronized_Queues;
 with GNAT.OS_Lib; use GNAT.OS_Lib;
-with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with User_Interface_Server; use User_Interface_Server;
 with General_Configuration; use General_Configuration;
+with DJH.Events_and_Errors; use DJH.Events_and_Errors;
+with DJH.Parse_CSV;
 
 package body Chime is
 
@@ -46,13 +50,6 @@ package body Chime is
    Volume_Test_File_Name : constant String := "volume_test.wav";
 
    subtype Commands is Unbounded_String;
-   Sound_Command : constant Commands :=
-     To_Unbounded_String ("/usr/bin/aplay -q ");
-   -- full path required, not necessarily in root path.
-   Volume_Command : constant Commands :=
-     To_Unbounded_String ("/usr/bin/amixer -q -M sset PCM ");
-   -- The switches -q and -M supress output and lineraise the volume change to
-   -- match hearing.
 
    type Chime_Lists is array (Hour_Number) of Commands;
 
@@ -89,6 +86,8 @@ package body Chime is
 
    private
 
+      Previous_File_Time : Time := Value ("2019-01-01 00:00:00");
+      -- A time before the hardware existed!
       Chiming_Enabled : Boolean := False;
       Chime_List : Chime_Lists := (others => Null_Unbounded_String);
       Current_Volume : Chime_Volumes := Default_Volume;
@@ -141,7 +140,8 @@ package body Chime is
 
    begin -- Test_Volume
       if Exists (Volume_Test_File_Name) then
-         Command_Queue.Enqueue (Sound_Command & Volume_Test_File_Name);
+         Command_Queue.Enqueue (To_Unbounded_String (Play_Command & ' ' &
+           Volume_Test_File_Name));
       else
          raise Chime_Error with "File not found: " & Volume_Test_File_Name;
       end if; -- Exists (Volume_Test_File_Name)
@@ -161,40 +161,40 @@ package body Chime is
 
    protected body Chime_State is
 
-      procedure Read_Chime_List (File_Name : in String;
+      procedure Read_Chime_List (Chime_File_Name : in String;
                                  Chime_List : out Chime_Lists) is
+         -- Reads in the file containing the sound files to be played
 
-         Delimiter : constant Character := ',';
-         Input_File : File_Type;
-         Text : Unbounded_String;
-         Start_At, Last : Positive;
-         First : Natural;
-         Hour : Hour_Number;
+         type Header is (Hour, File_Name);
+
+          package Parse_Chime is new DJH.Parse_CSV (Header);
+          use Parse_Chime;
+         
+         This_Hour : Hour_Number;
 
       begin -- Read_Chime_List
-         Chime_List := (others => Null_Unbounded_String);
-         Open (Input_File, In_File, File_Name);
-         while not End_Of_File (Input_File) loop
-            Get_Line (Input_File, Text);
-            Start_At := 1;
-            Find_Token (Text, Decimal_Digit_Set, Start_At, Inside, First, Last);
-            Hour := Hour_Number'Value (Slice (Text, First, Last));
-            Start_At := Last + 1;
-            if Delimiter /= Element (Text, Start_At) then
-               raise Chime_Error
-                 with "Delimiter missing from: " & To_String (Text);
-            end if; -- Delimiter /= Element (Text, Start_At)
-            Start_At := Start_At + 1;
-            First := Index_Non_Blank (Text, Start_At, Forward);
-            if Exists (Slice (Text, First, Length (Text))) then
-               Chime_List (Hour) := Sound_Command &
-                 Slice (Text, First, Length (Text));
-            else
-               raise Chime_Error with
-                 "File not found: " & Slice (Text, First, Length (Text));
-            end if; -- Exists (Slice (Text, First, Length (Text)))
-         end loop; -- not End_Of_File (Input_File)
-         Close (Input_File);
+         If Exists (Chime_File_Name) and then
+           Modification_Time (Chime_File_Name) /= Previous_File_Time then
+           -- Only reread file if it has been changed.
+            Chime_List := (others => Null_Unbounded_String);
+            Read_Header (Chime_File_Name);
+            while Next_Row loop
+               This_Hour := Hour_Number'Value (Get_Value (Hour));
+               if Exists (Get_Value (File_Name)) then
+                  Chime_List (This_Hour) :=
+                    To_Unbounded_String (Play_Command & ' ' &
+                                         Get_Value (File_Name));
+               else
+                  raise Chime_Error with
+                    "File not found: " & Get_Value (File_Name) & " at row" &
+                    Row_Number'Img;
+               end if; --  Exists (Get_Value (File_Name))
+            end loop; --  Next_Row
+            Put_Event ("Read " & Chime_File_Name & ' ' &
+              Local_Image (Modification_Time (Chime_File_Name)));
+              Previous_File_Time := Modification_Time (Chime_File_Name);
+            Close_CSV;
+         end if; -- Exists (Chime_File_Name) and then ...
       exception
          when Event : others =>
             Put_Error ("Read_Chime_List: ", Event);
@@ -206,7 +206,8 @@ package body Chime is
 
       begin -- Set_Volume
          pragma Warnings (Off);
-         Command_Queue.Enqueue (Volume_Command & Current_Volume'Img & '%');
+         Command_Queue.Enqueue (To_Unbounded_String (Volume_Command & ' ' &
+           Current_Volume'Img & '%'));
          pragma Warnings (On);
       exception
          when Event : others =>

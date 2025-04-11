@@ -1,8 +1,10 @@
 -- This package manages the Clock Brightness configuration file.
+
 -- Author    : David Haley
 -- Created   : 02/07/2019
--- Last Edit : 05/04/2025
--- This package manages the Clock Brightness configuration file.
+-- Last Edit : 09/04/2025
+
+-- 20250409 : Reporting of brightness file modification time.
 -- 20250405 : Minimum_Brightness, Chime_Brightness and Gamma removed to gereral
 -- configuration. DJH.Parse_CSV used to read in corrections. Brightness Records
 -- Removed.
@@ -14,6 +16,7 @@
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Directories; use Ada.Directories;
+with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with Ada.Exceptions; use Ada.Exceptions;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with DJH.Parse_CSV;
@@ -44,6 +47,10 @@ package body Brightness is
                              Extension => Current_Extension)) then
             Read_Header (Compose (Name => File_Name,
                                   Extension => Current_Extension));
+            Put_Event ("Read " & Compose (Name => File_Name,
+              Extension => Current_Extension) & ' ' &
+              Local_Image (Modification_Time (Compose (Name => File_Name,
+              Extension => Current_Extension))));
          else
             Put_Event ("Brightness file " &
                          Compose (Name => File_Name,
@@ -53,6 +60,10 @@ package body Brightness is
                                 Extension => Backup_Extension)) then
                Read_Header (Compose (Name => File_Name,
                                      Extension => Backup_Extension));
+               Put_Event ("Read " & Compose (Name => File_Name,
+                 Extension => Backup_Extension) & ' ' &
+                 Local_Image (Modification_Time (Compose (Name => File_Name,
+                 Extension => Backup_Extension))));
             else
                raise CSV_Error with "Brightness file not found";
             end if; -- Exists (Compose (Name => File_Name ...
