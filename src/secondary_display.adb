@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 08/04/2025
+-- Last Edit : 11/04/2025
 
+-- 20250411 : Correction to daylight saving logic;
 -- 20250408 : Support for multiple start and end times for daylight saving
 -- added. Automatic reloading of the secondary display added and conversion from
 -- a vector to a list of display items. Correction of the spelling of Arbitrary
@@ -145,11 +146,12 @@ package body Secondary_Display is
       Sub_Second : Second_Duration;
       Leap_Second : Boolean;
       Offset, Offset_from_UTC : Time_Offset;
-      Start_Time, Previous_Time : Time;
+      Start_Time : Time;
+      Previous_Time : Time := Value ("2019-01-01 00:00:00");
+      -- A time before the hardware existed!
       Defined : Boolean := False;
 
    begin -- Update_Time
-      Previous_Time := Current_Time;
       -- Allows for mutiple start dates and associated offsets to be read
       loop -- until end of line
          Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
@@ -164,7 +166,7 @@ package body Secondary_Display is
          -- Current_Time (UTC) is after Start_Time and later that any previously
          -- read Start_Date. Note the whole line has to be valid for a time to
          -- be displayed.
-         if Start_Time > Previous_Time and Start_Time > Current_Time then
+         if Start_Time > Previous_Time and Current_Time > Start_Time then
             Defined := True;
             Offset_from_UTC := Offset;
             Previous_Time := Start_Time;
