@@ -1,8 +1,9 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 11/04/2025
+-- Last Edit : 12/04/2025
 
+-- 20250412 : Final build implemention Software Requiremente 20250408.
 -- 20250411 : Correction of Spelling of Arbitrary, reporting of all
 -- configuration file modification times, Play_Command and Volume_Command now
 -- read from general configuration file, Time_Zone now supports multiple changes
@@ -41,7 +42,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20250411";
+   Clock_Version : constant Version_String := "20250412";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,

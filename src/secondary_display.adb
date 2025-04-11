@@ -3,9 +3,11 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 11/04/2025
+-- Last Edit : 12/04/2025
 
--- 20250411 : Correction to daylight saving logic;
+-- 20250412 : Final build for Software Requirements 20250408 various comments
+-- corrected.
+-- 20250411 : Correction to daylight saving logic.
 -- 20250408 : Support for multiple start and end times for daylight saving
 -- added. Automatic reloading of the secondary display added and conversion from
 -- a vector to a list of display items. Correction of the spelling of Arbitrary
@@ -170,7 +172,7 @@ package body Secondary_Display is
             Defined := True;
             Offset_from_UTC := Offset;
             Previous_Time := Start_Time;
-         end if; -- Start_Time > Previous_Time and Start_Time > Current_Time
+         end if; -- Start_Time > Previous_Time and Current_Time > Start_Time
          exit when Last >= Length (Text);
       end loop; -- until end of line
       if Defined then
