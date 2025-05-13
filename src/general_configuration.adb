@@ -2,8 +2,9 @@
 
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 11/04/2025
+-- Last Edit : 10/05/2025
 
+-- 20250510: Providing for simulated sweep hand modes to be set on startup.
 -- 20250411 : Corrected Minimum_Chime return value
 -- 20250410 : Read_General_Configuration, Play_Command and Volume_Command added.
 
@@ -26,9 +27,15 @@ package body General_Configuration is
       entry Minimum_Chime (G : out Greyscales);
       -- Returns mimimum brightness level at which chiming should occur.
 
+      entry Sweep_Mode (S : out Sweep_Modes);
+      -- Returns the startup mode ot the simulated sweep hand.
+      
+      entry Cycle_Sweep_Mode;
+      -- Cycles through sweep modes one step per call.
+
       entry Gamma (G : out Gammas);
       -- Returns the gamma value to be applied to the leading edge LED of the
-      -- simulated sweep hand.
+      -- simulated sweep hand, only applies to Smooth and With_Tail modes.
 
       entry Default_Volume (C : out Chime_Volumes);
       -- The initial chime volume of the clock when started.
@@ -46,6 +53,7 @@ package body General_Configuration is
       Defined : Boolean := False;
       Prot_Minimum_Brightness : Lit_Greyscales := 1;
       Prot_Minimum_Chime : Greyscales := Greyscales'Last; -- disabled
+      Prot_Sweep_Mode : Sweep_Modes := Normal;
       Prot_Gamma : Gammas := (Gammas'First + Gammas'Last) / 2.0;
       Prot_Default_Volume : Chime_Volumes := Chime_Volumes'First; -- silent
       Prot_Play_Command, Prot_Volume_Command : Unbounded_String :=
@@ -60,7 +68,7 @@ package body General_Configuration is
 
          File_Name : constant String := "General_Configuration.csv";
 
-         type Header is (Minimum_Brightness, Minimum_Chime, Gamma,
+         type Header is (Minimum_Brightness, Minimum_Chime, Sweep_Mode, Gamma,
                          Default_Volume, Play_Command, Volume_Command);
 
          package Parse_Configuration is new DJH.Parse_CSV (Header);
@@ -73,6 +81,7 @@ package body General_Configuration is
               Lit_Greyscales'Value (Get_Value (Minimum_Brightness));
             Prot_Minimum_Chime :=
               Greyscales'Value (Get_Value (Minimum_Chime));
+            Prot_Sweep_Mode := Sweep_Modes'Value (Get_Value (Sweep_Mode));
             Prot_Gamma := Gammas'Value (Get_Value (Gamma));
             Prot_Default_Volume :=
               Chime_Volumes'Value (Get_Value (Default_Volume));
@@ -105,9 +114,27 @@ package body General_Configuration is
          G := Prot_Minimum_Chime;
       end Minimum_Chime;
 
+      entry Sweep_Mode (S : out Sweep_Modes) when Defined is
+         -- Returns the startup mode ot the simulated sweep hand.
+         
+      begin -- Sweep_Mode
+         S := Prot_Sweep_Mode;
+      end Sweep_Mode;
+      
+      entry Cycle_Sweep_Mode when Defined is
+         -- Cycles through sweep modes one step per call.
+         
+      begin --
+         if Prot_Sweep_Mode < Sweep_Modes'Last then
+            Prot_Sweep_Mode := Sweep_Modes'Succ (Prot_Sweep_Mode);
+         else
+            Prot_Sweep_Mode := Sweep_Modes'First;
+         end if; -- Prot_Sweep_Mode < Sweep_Modes'Last
+      end Cycle_Sweep_Mode;
+
       entry Gamma (G : out Gammas) when Defined is
          -- Returns the gamma value to be applied to the leading edge LED of the
-         -- simulated sweep hand.
+         -- simulated sweep hand, only applies to Smooth and With_Tail modes.
 
       begin -- Gamma
          G := Prot_Gamma;
@@ -158,9 +185,27 @@ package body General_Configuration is
       return Result;
    end Minimum_Chime;
 
+   function Sweep_Mode return Sweep_Modes is
+      -- Returns the startup mode ot the simulated sweep hand.
+      
+      Result : Sweep_Modes;
+      
+   begin -- Sweep_Mode
+      Configuration.Sweep_Mode (Result);
+      return Result;
+   end Sweep_Mode;
+   
+   procedure Cycle_Sweep_Mode is
+      -- Cycles through sweep modes, stepping to a new mode each time it is
+      -- called.
+      
+   begin -- Cycle_Sweep_Mode
+      Configuration.Cycle_Sweep_Mode;
+   end Cycle_Sweep_Mode;
+
    function Gamma return Gammas is
       -- Returns the gamma value to be applied to the leading edge LED of the
-      -- simulated sweep hand.
+      -- simulated sweep hand, only applies to Smooth and With_Tail modes.
 
       Result : Gammas;
 
@@ -190,7 +235,6 @@ package body General_Configuration is
          return To_String (Result);
       end Play_Command;
    
-
    function Volume_Command return String is
    -- Returns the command line string used to invoke the volume control
    -- appliation.

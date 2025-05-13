@@ -3,8 +3,9 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 09/06/2022
+-- Last Edit : 10/05/2025
 
+-- 20250510 : Provision for multiple simulated sweep hand modes.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types. Stop_Clock removed.
 -- 20220126 : Diagnostic_Toggle addded to Request_Records and Status_Records.
@@ -27,12 +28,12 @@ package Shared_User_Interface is
 
    subtype Chime_Volumes is Natural range 0 .. 100;
 
-   Interface_Version : constant Version_String := "20220609";
+   Interface_Version : constant Version_String := "20250510";
    Request_Port : Port_Type := 50003;
    Response_Port : Port_Type := Request_Port + 1;
 
-   type Requests is (Toggle_Chime, Volume_Up, Volume_Down, Volume_Test,
-                     Get_Status, Exit_User_Interface);
+   type Requests is (Toggle_Chime, Cycle_Sweep, Volume_Up, Volume_Down,
+                     Volume_Test, Get_Status, Exit_User_Interface);
 
    type Request_Records is record
       User_Interface_Version : Version_String := Interface_Version;

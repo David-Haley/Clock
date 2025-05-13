@@ -4,8 +4,9 @@
 
 -- Author    : David Haley
 -- Created   : 25/07/2019
--- Last Edit : 09/06/2022
+-- Last Edit : 11/05/2025
 
+-- 20250511 : Provide for cycling sweep mode.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types. User shutdown removed.
 -- 20220127 : Corrected display of AL_Test_Value.
@@ -18,7 +19,7 @@
 -- 20220119 : Toggle_Chime added Process_Request made two speed dependent on
 -- Diagnostic State. Hide cursor during screen updates;
 -- 20220116 : Made generic and implementation of chiming control via user
--- unterface.
+-- interface.
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Calendar; use Ada.Calendar;
@@ -90,6 +91,8 @@ package body User_Interface_Client is
                Request_Record.Request := Volume_Down;
             when 'T' | 't' =>
                Request_Record.Request := Volume_Test;
+            when 'S' | 's' =>
+               Request_Record.Request := Cycle_Sweep;
             when 'E' | 'e' =>
                Run_Process_Requests := False;
                Request_Record.Request := Exit_User_Interface;
@@ -435,9 +438,11 @@ package body User_Interface_Client is
             Goto_XY (X_Pos'First, Commands_Y + 4);
             Put ("Test volume");
             Goto_XY (X_Pos'First, Commands_Y + 5);
-            Put ("Exit user interface");
+            Put ("Step sweep mode");
             Goto_XY (X_Pos'First, Commands_Y + 6);
             Put ("Diagnostic toggle");
+            Goto_XY (X_Pos'First, Commands_Y + 7);
+            Put ("Exit user interface");
          end if; -- Full_Update
          Animate_Clock (Origin_X, Y_Pos'First, Status, Previous_Status,
                         Full_Update);

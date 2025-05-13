@@ -1,8 +1,10 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 11/04/2025
+-- Last Edit : 13/05/2025
 
+-- 20250513 : Smooth added as a simulated sweep mode.
+-- 20250512 : Provision for multiple simulated sweep hand modes.
 -- 20250411 : Correction of Spelling of Arbitrary, reporting of all
 -- configuration file modification times, Play_Command and Volume_Command now
 -- read from general configuration file, Time_Zone now supports multiple changes
@@ -58,9 +60,11 @@ with User_Interface_Server; use User_Interface_Server;
 procedure IOT_Clock is
 
    use Clock_LEDs;
-
-   Update_Interval : constant Duration := 0.125; -- 125ms
-   -- 8 Hz update rate, primarily for sweep animation
+   
+   Update_Rate : constant array (Sweep_Modes) of Positive 
+     := (Normal => 8, Smooth => 16, With_Tail => 8,
+     Sub_Second => Sweep_Indices'Modulus);
+   -- 8 Hz (Normal), 16 Hz (Smooth) 8 Hz (With_Tail) 60 Hz (Sub_Second)
 
    package Real_Numerics is new
      Ada.Numerics.Generic_Elementary_Functions (Real);
@@ -108,6 +112,7 @@ procedure IOT_Clock is
 
    procedure Update_Sweep (Next_Time : in Time;
                            Display_Brightness  : in Lit_Greyscales;
+                           S_Mode : in sweep_Modes;
                            Gamma : in Gammas) is
 
       -- Updates all the sweep and marker LEDs. Note all the sweep leds must be
@@ -115,9 +120,8 @@ procedure IOT_Clock is
       -- occuring as a result of an NTP update, particularly during startup or
       -- if there has been a long disruption to network connectivity.
 
-      Blink : constant Second_Duration := 0.25;
+      Blink : constant Second_Duration := 0.125;
       -- Duration markers are turned off as sweep passes by
-      Steps : constant Real := 1.0 / Real (Update_Interval);
       Sweep_LEDs : array (Sweep_Indices) of Greyscales := (others => 0);
       LED_Index : Sweep_Indices;
       Tail_Brightness : Greyscales := Shift_Right (Display_Brightness, 1);
@@ -139,20 +143,33 @@ procedure IOT_Clock is
       elsif Second (Next_Time) = 45 and  Sub_Second (Next_Time) < Blink then
          Set_Greyscale (Marker_Array (Marker_45).Driver,
                         Marker_Array (Marker_45).Channel, Greyscales'First);
-      end if; -- Second (Next_Time) = 0 and  Sub_Second (Next_Time) < 0.25
+      end if; -- Second (Next_Time) = 0 and  Sub_Second (Next_Time) < Blink
       LED_Index := Sweep_Indices (Second (Next_Time));
       Sweep_LEDs (LED_Index) := Display_Brightness;
       -- current second LED fully lit
-      Sweep_LEDs (LED_Index + 1) :=
-        Greyscales (Real'Floor (Real (Display_Brightness) *
-                    (Real (Sub_Second (Next_Time)) /
-                         Real (Update_Interval)/ Steps) ** Gamma));
-      -- make tail
-      while Tail_Brightness > 0 loop
-         Sweep_LEDs (LED_Index - 1) := Tail_Brightness;
-         LED_Index := LED_Index - 1;
-         Tail_Brightness := Shift_Right (Tail_Brightness, 1);
-      end loop; -- Tail_Brightness > 0
+      case S_mode is
+      when Normal =>
+         null;
+      when Smooth =>
+         Sweep_LEDs (LED_Index + 1) :=
+           Greyscales (Real'Floor (Real (Display_Brightness) *
+                       (Real (Sub_Second (Next_Time)) ** Gamma)));
+         Sweep_LEDs (LED_Index) := @ - Sweep_LEDs (LED_Index + 1);
+      when With_Tail =>
+         Sweep_LEDs (LED_Index + 1) :=
+           Greyscales (Real'Floor (Real (Display_Brightness) *
+                       (Real (Sub_Second (Next_Time)) ** Gamma)));
+         -- make tail
+         while Tail_Brightness > 0 loop
+            LED_Index := @ - 1;
+            Sweep_LEDs (LED_Index) := Tail_Brightness;
+            Tail_Brightness := Shift_Right (Tail_Brightness, 1);
+         end loop; -- Tail_Brightness > 0
+      when Sub_Second =>
+         LED_Index := @ + Sweep_Indices (Duration (Sweep_Indices'Modulus) *
+           Sub_Second (Next_Time));
+         Sweep_LEDs (LED_Index) := Display_Brightness;
+      end case; -- S_mode
       for I in Sweep_Indices loop
          Set_Greyscale (Sweep_Array (I).Driver, Sweep_Array (I).Channel,
                         Sweep_LEDs (I));
@@ -162,21 +179,13 @@ procedure IOT_Clock is
    procedure Update_Primary (Next_Time : in Time;
                              Display_Brightness : in Lit_Greyscales) is
 
-      Year : Year_Number;
-      Month : Month_Number;
-      Day : Day_Number;
-      Hour : Hour_Number;
-      Minute : Minute_Number;
-      Second : Second_Number;
-      Sub_Second : Second_Duration;
-      Leap_Second : Boolean;
+      Hour : Hour_Number :=
+        Ada.Calendar.Formatting.Hour (Next_Time, UTC_Time_Offset (Next_Time));
+      Minute : Minute_Number :=
+        Ada.Calendar.Formatting.Minute (Next_Time, UTC_Time_Offset (Next_Time));
+      Second : Second_Number := Ada.Calendar.Formatting.Second (Next_Time);
 
    begin -- Update_Primary
-      Report_Time (Next_Time);
-      -- Copy currently displayed time to user interfsce
-      Split (Next_Time, Year, Month, Day,
-             Hour, Minute, Second, Sub_Second,
-             Leap_Second, UTC_Time_Offset (Next_Time));
       Set_Digit (Tens_Hours, Hour / 10, Display_Brightness);
       Set_Digit (Units_Hours, Hour mod 10, Display_Brightness,
                  not Get_Chime_Toggle);
@@ -189,57 +198,72 @@ procedure IOT_Clock is
    end Update_Primary;
 
    Dot_Correction : Dot_Corrections := Read_Brightness_Config;
-   Next_Time : Time := Truncate_Second (Clock + 1.0) + Update_Interval;
-   -- First loop execution delayed such that the loop will at 00 subseconds plus
-   -- a multiple of the Update Interval and not in the past (+1s).
-   Time_Step : Duration := 3.0;
+   Time_Step : constant Duration := 3.0;
    -- This is the naximum NTP correction which will allow clock to run all
    -- display updates.
    Display_Brightness : Lit_Greyscales := Minimum_Brightness;
+   S_Mode : Sweep_Modes;
+   Update_Interval : Duration;
+   Update_Count : Positive;
+   Next_Time : Time := Truncate_Second (Clock + 1.0);
+   -- First loop execution delayed such that the loop will at 00 subseconds plus
+   -- a multiple of the Update Interval and not in the past (+1s).
 
 begin -- IOT_Clock
    Handlers.Install;
    Put_Event ("IOT_Clock version " & Clock_Version & " started");
    Initialise_Hardware (Dot_Correction);
    Initialise_Secondary_Display;
-   loop -- 8 Hz loop
+   loop -- One second loop
       delay until Next_Time;
       if Clock < Next_Time - Time_Step or Clock > Next_Time + Time_Step then
          -- A large time correction has occured from NTP update or a restart.
          Resync_Secondary;
-         Next_Time := Truncate_Second (Clock + 1.0) + Update_Interval;
+         Next_Time := Truncate_Second (Clock + 1.0);
          delay until Next_Time;
       end if; --  Clock < Next_Time - Time_Step or Clock > Next_Time + Time_Step
-      Update_Sweep (Next_Time, Display_Brightness, Gamma);
-      Update_Primary (Next_Time, Display_Brightness);
-      if Sub_Second (Next_Time) < Update_Interval then
-         -- Secondary display stepped forward once per second.
-         Update_Secondary (Next_Time, Display_Brightness, True);
-      else
-         Update_Secondary (Next_Time, Display_Brightness);
-      end if; -- Sub_Second (Next_Time) < Update_Interval
-      if Get_Ambient_Light > Minimum_Brightness then
+      S_Mode := Sweep_Mode;
+      Update_interval := 1.0 / Duration (Update_Rate (S_Mode));
+      Update_Count := 1;
+      loop -- Update loop
          Display_Brightness := Get_Ambient_Light;
-      else
-         Display_Brightness := Minimum_Brightness;
-      end if; -- Get_Ambient_Light > Minimum_Brightness
+         Update_Sweep (Next_Time, Display_Brightness, S_Mode, Gamma);
+         Update_Primary (Next_Time, Display_Brightness);
+         if Update_Count = 1 then
+            -- Secondary display stepped forward once per second.
+            Update_Secondary (Next_Time, Display_Brightness, True);
+         else
+            Update_Secondary (Next_Time, Display_Brightness);
+         end if; -- Update_Count = 1
+         -- Copy currently displayed time to user interfsce
+         if Display_Brightness < Minimum_Brightness then
+            Display_Brightness := Minimum_Brightness;
+         end if; -- Display_Brightness < Minimum_Brightness
+         Write_LEDs;
+         -- Report status to user interface
+         Report_Time (Next_Time);
+         for D in LED_Drivers loop
+            For C in LED_Channels loop
+               Report_LED (D, C, Get_Greyscale (D, C));
+            end loop;  -- C in LED_Channels
+         end loop; -- D in LED_Drivers
+         Report_Ambient_Light (Get_Ambient_Light,
+                               Get_Greyscale (AL_Driver, AL_Channel));
+         exit when Update_Count >= Update_Rate (S_Mode) - 1;
+         Update_Count := @ + 1;
+         Next_Time := Next_Time + Update_Interval;
+         delay until Next_Time;
+      end loop; -- Update loop
+      exit when Ctrl_C_Stop or Handlers.Signal_Stop;
       if Display_Brightness > Minimum_Chime and Get_Chime_Toggle then
          Chiming;
       else
          Silent;
       end if; -- Display_Brightness > Chime_Brightness and Get_Chime_Toggle
-      Write_LEDs;
-      -- Report status to user interface
-      for D in LED_Drivers loop
-         For C in LED_Channels loop
-            Report_LED (D, C, Get_Greyscale (D, C));
-         end loop;  -- C in LED_Channels
-      end loop; -- D in LED_Drivers
-      Report_Ambient_Light (Get_Ambient_Light,
-                            Get_Greyscale (AL_Driver, AL_Channel));
-      Next_Time := Next_Time + Update_Interval;
-      exit when Ctrl_C_Stop or Handlers.Signal_Stop;
-   end loop; -- 8 Hz loop
+      Next_Time := Truncate_Second (Next_Time + 1.0);
+      -- This is done so that rounding errors will not accumulate over more than
+      -- one second.
+   end loop; -- One Second loop
    -- stop other tasks to allow termination
    End_Chiming;
    Stop_UI_Server;

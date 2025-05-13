@@ -2,8 +2,9 @@
 -- user interface.
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 20/09/2022
+-- Last Edit : 10/05/2025
 
+-- 20250510 : Provision for multiple simulated sweep hand modes.
 -- 20220920 :  User initiated shutdown moved to main loop.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.

@@ -6,8 +6,8 @@ project Iot_Clock is
    for Languages use ("Ada", "C");
 
    package Compiler is
-      for Switches ("c") use ("-g", "-Wall", "-ansi");
-      for Switches ("ada") use ("-gnat2022", "-g", "-gnato", "-fstack-check", "-gnatE", "-gnatf", "-gnatVa");
+      for Switches ("c") use ("-g", "-Wall", "-fstack-check");
+      for Switches ("ada") use ("-gnat2022", "-g", "-gnato", "-fstack-check", "-gnatE", "-gnatf", "-gnatVd");
    end Compiler;
 
 -- Uncomment the lines below if it is necessary to debug elaboration

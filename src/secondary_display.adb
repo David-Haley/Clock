@@ -3,8 +3,12 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 12/04/2025
+-- Last Edit : 12/05/2025
 
+-- 20250512 : Changes to ensure that every time Update_Secondary is called the
+-- display buffer is rewritten. Correction of a possible flaw, removal of the
+-- Secondary.csv file could cause an exception when the end of the list is
+-- reached.
 -- 20250412 : Final build for Software Requirements 20250408 various comments
 -- corrected.
 -- 20250411 : Correction to daylight saving logic.
@@ -436,43 +440,50 @@ package body Secondary_Display is
                end if; -- Item_Cursor /= Item_Lists.No_Element
             end if; --  Time_Remaining > 1
          end if; --  Dynamic and Step_Display and not First_Run
-         -- parse current item
-         Text := Item_List (Item_Cursor);
-         Report_Current_Item (Head (To_String (Text), UI_Strings'Length, ' '));
-         Start_At := 1;
-         Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-         Start_At := Last + 1;
-         Display_Item := Display_Items'Value (Slice (Text, First, Last));
-         Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-         Item_Duration := Second_Number'Value (Slice (Text, First, Last));
-         Start_At := Last + 1;
-         -- point to character after last digit, possible delimiter
-         Dynamic := Dynamic and Item_Duration > 0;
-         if First_Time then
-            Time_Remaining := Item_Duration;
-         end if; -- First_Time
-         case Display_Item is
-            when DDMMYY | MMDDYY | YYMMDD =>
-               Update_Date (Display_Item, Current_Time, Display_Brightness);
-            when Time_Zone =>
-               Update_Time (Current_Time, Display_Brightness, Text, Start_At,
-                            First, Last);
-            when Dec =>
-               Update_Dec (Display_Brightness, Text, Start_At, First, Last);
-            when Hex =>
-               Update_Hex (Display_Brightness, Text, Start_At, First, Last);
-            when Arbitrary =>
-               Update_Arbitrary (Display_Brightness, Text, Start_At, First,
-                                Last);
-            when Blank =>
-               Blank;
-         end case; -- Display_Item
-         First_Run := False;
+         if Item_Cursor /= Item_Lists.No_Element then
+            -- parse current item
+            Text := Item_List (Item_Cursor);
+            Report_Current_Item (Head (To_String (Text),
+                                 UI_Strings'Length, ' '));
+            Start_At := 1;
+            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+            Start_At := Last + 1;
+            Display_Item := Display_Items'Value (Slice (Text, First, Last));
+            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+            Item_Duration := Second_Number'Value (Slice (Text, First, Last));
+            Start_At := Last + 1;
+            -- point to character after last digit, possible delimiter
+            Dynamic := Dynamic and Item_Duration > 0;
+            if First_Time then
+               Time_Remaining := Item_Duration;
+            end if; -- First_Time
+            case Display_Item is
+               when DDMMYY | MMDDYY | YYMMDD =>
+                  Update_Date (Display_Item, Current_Time, Display_Brightness);
+               when Time_Zone =>
+                  Update_Time (Current_Time, Display_Brightness, Text, Start_At,
+                               First, Last);
+               when Dec =>
+                  Update_Dec (Display_Brightness, Text, Start_At, First, Last);
+               when Hex =>
+                  Update_Hex (Display_Brightness, Text, Start_At, First, Last);
+               when Arbitrary =>
+                  Update_Arbitrary (Display_Brightness, Text, Start_At, First,
+                                   Last);
+               when Blank =>
+                  Blank;
+            end case; -- Display_Item
+            First_Run := False;
+         else
+            Blank;
+         end if; -- Item_Cursor /= Item_Lists.No_Element
       elsif (Step_Display and Exists (File_Name)) and then
         File_Time /= Modification_Time (File_Name) then
          -- Only test that the file has become available once per second, made
          -- one shot by testing file date/time.
          Initialise_Secondary_Display;
+      else
+         Blank;
       end if; -- Run
    exception
       when Event: Others =>

@@ -3,8 +3,9 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 22/09/2022
+-- Last Edit : 11/05/2025
 
+-- 20250511 : Provision for multiple simulated sweep hand modes.
 -- 20220922 : Termination mechanism changed to use abort.
 -- 20220920 : User initiated shutdown moved to main loop.
 -- 20220609 : User interface shutdown removed now by SIGTERM or Ctrl_C.
@@ -25,6 +26,7 @@ with Clock_Driver; use Clock_Driver;
 with Shared_User_Interface; use Shared_User_Interface;
 with Secondary_Display; use Secondary_Display;
 with Chime; use Chime;
+with General_Configuration; use General_Configuration;
 
 package body User_Interface_Server is
 
@@ -169,6 +171,8 @@ package body User_Interface_Server is
                Raise_Volume;
             when Volume_Down =>
                Lower_Volume;
+            when Cycle_Sweep =>
+               Cycle_Sweep_Mode;
             when Volume_Test =>
                Test_Volume;
             when others =>
@@ -233,10 +237,10 @@ package body User_Interface_Server is
          -- Provides for reporting of current ambient light and the current
          -- comparison value to user interface.
 
-      begin --
+      begin -- Report_Ambient_Light
          UI_Data.Clock_Status.Ambient_Light := Ambient_Light;
          UI_Data.Clock_Status.AL_Test_Value := AL_Test_Value;
-      end;
+      end Report_Ambient_Light;
 
       procedure Report_LED (Driver : in LED_Drivers;
                             Channel : in LED_Channels;
