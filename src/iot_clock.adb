@@ -1,8 +1,17 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 13/05/2025
+-- Last Edit : 14/05/2025
 
+-- 20250514 : Correction of Display_Brightness setting in IOT_Clock update loop.
+-- In an attempt to remove what appeared to be a flaw, whereby two calls were
+-- made to Get_Ambient_Light, potentially returning different values, one in an
+-- if statement and another to set Display_Brightness. In reality this was
+-- acceptable because changes in the returned value could only occur if there
+-- was an intervening call to Write_LEDs. There are no asynchronous calls to
+-- Write_LEDs so this is not possible. The "fix" introduced a more serious issue
+-- if Get_Ambient_Light returned 0 then an exception was raised when this was
+-- assigned to Display_Brightness which has a minimum valie of 1!
 -- 20250513 : Smooth added as a simulated sweep mode.
 -- 20250512 : Provision for multiple simulated sweep hand modes.
 -- 20250411 : Correction of Spelling of Arbitrary, reporting of all
@@ -202,6 +211,7 @@ procedure IOT_Clock is
    -- This is the naximum NTP correction which will allow clock to run all
    -- display updates.
    Display_Brightness : Lit_Greyscales := Minimum_Brightness;
+   Ambient_Light : Greyscales;
    S_Mode : Sweep_Modes;
    Update_Interval : Duration;
    Update_Count : Positive;
@@ -226,7 +236,12 @@ begin -- IOT_Clock
       Update_interval := 1.0 / Duration (Update_Rate (S_Mode));
       Update_Count := 1;
       loop -- Update loop
-         Display_Brightness := Get_Ambient_Light;
+         Ambient_Light := Get_Ambient_Light;
+         if Ambient_Light > Minimum_Brightness then
+            Display_Brightness := Ambient_Light;
+         else
+            Display_Brightness := Minimum_Brightness;
+         end if; -- Get_Ambient_Light > Minimum_Brightness
          Update_Sweep (Next_Time, Display_Brightness, S_Mode, Gamma);
          Update_Primary (Next_Time, Display_Brightness);
          if Update_Count = 1 then
@@ -235,20 +250,23 @@ begin -- IOT_Clock
          else
             Update_Secondary (Next_Time, Display_Brightness);
          end if; -- Update_Count = 1
-         -- Copy currently displayed time to user interfsce
-         if Display_Brightness < Minimum_Brightness then
-            Display_Brightness := Minimum_Brightness;
-         end if; -- Display_Brightness < Minimum_Brightness
          Write_LEDs;
+         -- Writes to the hardware, and runs the ambient light measurement
+         -- ligic.
          -- Report status to user interface
          Report_Time (Next_Time);
+         -- Copy currently displayed time to user interfsce
          for D in LED_Drivers loop
             For C in LED_Channels loop
                Report_LED (D, C, Get_Greyscale (D, C));
             end loop;  -- C in LED_Channels
          end loop; -- D in LED_Drivers
-         Report_Ambient_Light (Get_Ambient_Light,
+         Report_Ambient_Light (Ambient_Light,
+         -- N.B. this is the value that was used to set Display_Brightness and
+         -- may not reflect the state of the successive approximation logic,
+         -- due to the intervening call to Write_LEDs.
                                Get_Greyscale (AL_Driver, AL_Channel));
+         -- Current test value in successive approximation logic.
          exit when Update_Count >= Update_Rate (S_Mode) - 1;
          Update_Count := @ + 1;
          Next_Time := Next_Time + Update_Interval;
