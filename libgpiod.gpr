@@ -1,0 +1,9 @@
+project libgpiod is
+
+	for Library_name use "gpiod";
+	for Externally_Built use "True";
+	for Source_Files use ();
+	for Library_Dir use "/usr/lib/aarch64-linux-gnu/";
+	for Library_Kind use "relocatable";
+	
+end libgpiod;

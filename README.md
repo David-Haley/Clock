@@ -6,6 +6,7 @@ Software for a clock based on purpose built hardware driven by a Raspberry Pi 3B
  The hardware suports automatic brightness control over a 4095 to one range with 64 levels of analogue brightness compensation to match the brightness of individual LEDs and segments.
  The clock can chime by playing arbitrary .wav files (uses amixer and aplay).
 
+<<<<<<< HEAD
 ## Platform Requirement
 
 **This project can only be compiled and run on a Raspberry Pi 3B running Linux (Raspberry Pi OS / Raspbian).**
@@ -48,7 +49,7 @@ The following repositories must be cloned alongside this one (i.e. all four must
 |------------|---------|
 | `DJH` | `Events_and_Errors` (logging) and `Parse_CSV` (CSV config parsing) |
 | `Pi_Common` | Ada drivers: `RPi_GPIO`, `TLC5940`, `Linux_Signals` |
-| `Pi_Common_C` | C SPI/I2C/GPIO low-level drivers |
+| `Pi_Common_C` | C low-level drivers: `SPI_interface`, `gpio_driver` |
 
 Expected directory layout:
 ```
@@ -128,3 +129,18 @@ The following CSV files must be present in the working directory when the clock 
 - Chime schedule (hour → `.wav` file path mapping; missing entries silence that hour)
 
 WAV files referenced by the chime schedule must also be accessible at the configured paths.
+
+Sample config files are provided in `Example_Configuration/` — these are from real hardware and serve as a starting point. The simulator requires its own `General_Configuration.csv` with `echo` substituted for `aplay`/`amixer` (the Docker scripts handle this automatically).
+
+## Files Added in This PR
+
+| Path | Description |
+|------|-------------|
+| `docker/` | Dockerfile, `run_sim.sh` (build + run), `build.sh` (cross-compile only), `entrypoint.sh` |
+| `web/bridge.py` | Python WebSocket bridge; runs inside the container, forwards LED state to the browser on port 8765 |
+| `web/index.html` | Browser clock UI; connects to `ws://localhost:8765` and renders the display |
+| `web/debug_*.py` | Utilities for inspecting raw WebSocket output |
+| `src_sim/` | Ada stubs replacing the real Linux signal handler; required to avoid GNAT interrupt-priority elaboration errors when building without hardware headers |
+| `iot_clock_sim.gpr` | Simulator GPR project (uses stub drivers from `src_sim/` instead of hardware drivers) |
+| `Example_Configuration/` | Real hardware CSV config files (`Brightness.csv`, `General_Configuration.csv`, `Chimes.csv`, `Secondary.csv`) and a systemd service unit (`iot_clock.service`); useful as a starting point for hardware setup |
+| `libgpiod.gpr` | GPR project wrapping the system libgpiod library |
