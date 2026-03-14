@@ -102,24 +102,12 @@ Missing files cause Ada tasks to survive but the main loop to silently never sta
 
 ## Debugging Tips
 
-### Start here when something isn't working
-
-Before any other debugging, check the Ada log files — they record startup failures
-and config errors that don't appear in `docker logs`:
-```bash
-cat Event_Log.txt   # startup events, config file reads
-cat Error_Log.txt   # exceptions and failures
-```
-Also run `docker logs iot-clock-sim` to see bridge output.
-
-The most common failure pattern: log files show config was read but
-`"IOT_Clock version ... started"` is absent → a config file raised during
-Ada declarations (check `Error_Log.txt` for the filename).
+- If the clock appears alive (UI server responds) but Current_Time=0 and all LEDs off,
+  check `Error_Log.txt` — a config file is likely missing.
 - `General_Configuration` entries are protected by a `when Defined` barrier; calling any
   getter before `Configuration.Read` completes will block forever.
 - Ada wire layout (aarch64 GNAT): `Requests` enum is 1 byte (7 values, not 4 bytes).
   Padding before `Current_Time` is 6 bytes (not 3). See `web/bridge.py` for full layout.
-
 
 ## Ada-Specific Notes
 
