@@ -1,0 +1,5 @@
+Clock/obj/
+Clock/obj_sim/
+**/.git/
+**/*.o
+**/*.ali

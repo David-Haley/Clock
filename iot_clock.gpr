@@ -17,7 +17,7 @@ project Iot_Clock is
 
    package Linker is
       for Switches ("c") use ("-g");
-      for Switches ("ada") use ("-g");
+      for Switches ("ada") use ("-g", "-lgpiod");
    end Linker;
 
 end Iot_Clock;
