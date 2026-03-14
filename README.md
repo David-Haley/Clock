@@ -6,7 +6,6 @@ Software for a clock based on purpose built hardware driven by a Raspberry Pi 3B
  The hardware suports automatic brightness control over a 4095 to one range with 64 levels of analogue brightness compensation to match the brightness of individual LEDs and segments.
  The clock can chime by playing arbitrary .wav files (uses amixer and aplay).
 
-<<<<<<< HEAD
 ## Platform Requirement
 
 **This project can only be compiled and run on a Raspberry Pi 3B running Linux (Raspberry Pi OS / Raspbian).**
@@ -123,24 +122,45 @@ The script blocks in the foreground. Ctrl-C stops it, or run `docker stop iot-cl
 
 ## Runtime Configuration Files
 
-The following CSV files must be present in the working directory when the clock is started:
-- General configuration (brightness thresholds, sweep mode, gamma correction, audio command paths)
-- Brightness calibration (per-LED dot correction values — 160 values across 10 TLC5940 drivers)
-- Chime schedule (hour → `.wav` file path mapping; missing entries silence that hour)
+The following CSV files must be present in the `Clock/` working directory when the clock binary is started. Missing files cause silent failures — see Troubleshooting above.
 
-WAV files referenced by the chime schedule must also be accessible at the configured paths.
+| File | Required | Purpose |
+|------|----------|---------|
+| `General_Configuration.csv` | Yes | Minimum brightness, chime threshold, sweep mode, gamma, volume, audio command paths |
+| `Brightness.csv` | Yes | Per-LED dot correction — 160 values (10 TLC5940 drivers × 16 channels). Missing this file causes elaboration failure; child tasks survive but the main loop never starts |
+| `Chimes.csv` | No | Hour → `.wav` file path mapping; missing entries silence that hour |
+| `Secondary.csv` | No | Secondary display configuration; missing shows blank secondary |
 
-Sample config files are provided in `Example_Configuration/` — these are from real hardware and serve as a starting point. The simulator requires its own `General_Configuration.csv` with `echo` substituted for `aplay`/`amixer` (the Docker scripts handle this automatically).
+WAV files referenced by `Chimes.csv` must also be accessible at the configured paths.
 
-## Files Added in This PR
+### Example Configuration Files
 
-| Path | Description |
-|------|-------------|
-| `docker/` | Dockerfile, `run_sim.sh` (build + run), `build.sh` (cross-compile only), `entrypoint.sh` |
-| `web/bridge.py` | Python WebSocket bridge; runs inside the container, forwards LED state to the browser on port 8765 |
-| `web/index.html` | Browser clock UI; connects to `ws://localhost:8765` and renders the display |
-| `web/debug_*.py` | Utilities for inspecting raw WebSocket output |
-| `src_sim/` | Ada stubs replacing the real Linux signal handler; required to avoid GNAT interrupt-priority elaboration errors when building without hardware headers |
-| `iot_clock_sim.gpr` | Simulator GPR project (uses stub drivers from `src_sim/` instead of hardware drivers) |
-| `Example_Configuration/` | Real hardware CSV config files (`Brightness.csv`, `General_Configuration.csv`, `Chimes.csv`, `Secondary.csv`) and a systemd service unit (`iot_clock.service`); useful as a starting point for hardware setup |
-| `libgpiod.gpr` | GPR project wrapping the system libgpiod library |
+`Example_Configuration/` contains reference files from the real hardware build, useful as a starting point:
+
+| File | Notes |
+|------|-------|
+| `Brightness.csv` | Per-LED calibration from real hardware (mostly 50, with one channel at 10 for the ambient light sensor input) |
+| `General_Configuration.csv` | Real hardware settings: `aplay`/`amixer` paths, `Minimum_Chime` of `6` (chime unless very dark) |
+| `Chimes.csv` | Chime schedule from real hardware |
+| `Secondary.csv` | Secondary display config from real hardware |
+| `iot_clock.service` | systemd service unit for auto-start on boot |
+
+### Simulator vs Hardware Differences
+
+Two config files need different values for the simulator:
+
+**`General_Configuration.csv`**
+- `Play_Command` / `Volume_Command`: hardware uses `/usr/bin/aplay -q` and `/usr/bin/amixer ...`; simulator uses `echo` as a no-op stub (no audio hardware)
+- `Minimum_Chime`: a `Greyscales` value (0–4095) representing the ambient light level above which chiming is allowed. Hardware uses `6` (chime unless very dark); simulator uses `4095` (effectively disabled — no real ambient sensor)
+- Use `Example_Configuration/General_Configuration.sim.csv` as a starting point for simulator use
+
+**`Brightness.csv`**
+- Hardware uses per-LED calibrated values; simulator uses uniform `31` (uncalibrated default — all LEDs equal)
+- Use `Example_Configuration/Brightness.sim.csv` as a starting point for simulator use
+
+To set up the simulator manually:
+```bash
+cp Example_Configuration/General_Configuration.sim.csv General_Configuration.csv
+cp Example_Configuration/Brightness.sim.csv Brightness.csv
+```
+The Docker scripts (`docker/run_sim.sh`) handle this automatically.
