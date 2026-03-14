@@ -21,4 +21,4 @@ trap cleanup EXIT INT TERM
 # Brief pause so Ada's UDP socket is open before bridge starts polling
 sleep 0.5
 
-BRIDGE_WS_HOST=0.0.0.0 BRIDGE_HTTP_PORT=8080 python3 "$BRIDGE" 127.0.0.1
+BRIDGE_WS_HOST=0.0.0.0 python3 "$BRIDGE" 127.0.0.1

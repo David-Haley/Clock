@@ -1,4 +1,4 @@
-FROM arm64v8/ubuntu:latest
+FROM --platform=linux/arm64 arm64v8/ubuntu:24.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gnat gprbuild libgpiod-dev linux-libc-dev \

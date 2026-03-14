@@ -22,12 +22,10 @@ if docker ps -q --filter "name=^${CONTAINER_NAME}$" | grep -q .; then
     docker stop "$CONTAINER_NAME" 2>/dev/null || true
 fi
 
-# ── Ensure Colima is running (macOS only) ────────────────────────────────────
-if command -v colima &>/dev/null; then
-    if ! colima status --profile aarch64 2>/dev/null | grep -q "Running"; then
-        echo "Starting Colima aarch64 profile..."
-        colima start --profile aarch64 --arch aarch64 --vm-type vz --vz-rosetta
-    fi
+# ── Ensure Colima is running ─────────────────────────────────────────────────
+if ! colima status --profile aarch64 2>/dev/null | grep -q "Running"; then
+    echo "Starting Colima aarch64 profile..."
+    colima start --profile aarch64 --arch aarch64 --vm-type vz --vz-rosetta
 fi
 
 # ── Build Docker image ───────────────────────────────────────────────────────
@@ -45,23 +43,18 @@ docker run --rm --platform linux/arm64 \
 
 echo ""
 echo "Simulation binary built at Clock/obj_sim/iot_clock"
-echo "Running clock + bridge..."
-echo "  Simulator WebSocket: ws://localhost:8765"
-echo "  Simulator HTTP UI:   http://localhost:8080/index.html"
-echo "  For a real clock:    ./web/run_bridge.sh <clock-host>"
+echo "Running clock + bridge (WebSocket on ws://localhost:8765)..."
 echo "  Stop with: docker stop ${CONTAINER_NAME}  (or Ctrl-C)"
 echo ""
 
 # ── Run Ada clock + bridge together ─────────────────────────────────────────
 # Bridge runs inside the container so it talks to Ada via 127.0.0.1 (no NAT).
-# Only TCP port 8765 (WebSocket) is forwarded to the Mac; the bridge binds
-# to all interfaces inside the container (Docker controls external access).
+# Only TCP port 8765 (WebSocket) is exposed to the Mac.
 docker run --rm \
     --name "$CONTAINER_NAME" \
     --platform linux/arm64 \
     -v "$PARENT:/build" \
     -w /build/Clock \
     -p 8765:8765/tcp \
-    -p 8080:8080/tcp \
     iot-clock-build \
     /build/Clock/docker/entrypoint.sh
