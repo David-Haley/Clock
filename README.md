@@ -59,6 +59,67 @@ parent/
 └── Pi_Common_C/
 ```
 
+## Cross-Compiling for the Raspberry Pi
+
+If you want to build the production binary on your Mac (without a Pi connected), use the Docker-based cross-compiler:
+
+```bash
+# Build the arm64 production binary inside Docker
+docker/build.sh
+
+# Output binary is at Clock/obj/iot_clock — copy it to the Pi:
+scp Clock/obj/iot_clock pi@<pi-hostname>:~/
+```
+
+This compiles `iot_clock.gpr` (real hardware drivers) inside an arm64 Ubuntu container, so the result runs natively on the Pi without any stubs.
+
+> **When to use this vs the simulator:** Use `docker/build.sh` when you're ready to deploy to real hardware. Use `docker/run_sim.sh` during development to test display logic in a browser without needing a Pi.
+
+## Running the Simulator
+
+The clock can be run on any machine using Docker, without real hardware. The simulator uses stub C drivers (no GPIO/SPI access) and streams the display state to a browser via WebSocket.
+
+### Prerequisites
+
+| Platform | Requirements |
+|----------|-------------|
+| **macOS** | [Docker Desktop](https://www.docker.com/products/docker-desktop/) + [Colima](https://github.com/abiosoft/colima) (`brew install colima`) for arm64 emulation |
+| **Windows** | [Docker Desktop](https://www.docker.com/products/docker-desktop/) with the WSL 2 backend enabled; run all commands from a WSL 2 terminal |
+| **Linux** | Docker Engine with `binfmt_misc` + QEMU for arm64 (`docker run --rm --privileged multiarch/qemu-user-static --reset -p yes`) |
+
+All platforms require the four sibling repositories cloned into the same parent directory (see [Sibling Repositories](#sibling-repositories) below).
+
+### Quick Start
+
+```bash
+# From the Clock/ directory — builds the image, compiles the sim binary, and starts it
+docker/run_sim.sh
+
+# Then open the web UI in a browser:
+#   macOS/Linux: open web/index.html  (or file:///path/to/Clock/web/index.html)
+#   Windows:     open web\index.html in Explorer, or use the file:// URL in a browser
+
+# Stop the simulator
+docker stop iot-clock-sim
+```
+
+The script blocks in the foreground. Ctrl-C stops it, or run `docker stop iot-clock-sim` from another terminal.
+
+> **Windows note:** `run_sim.sh` is a Bash script and uses `colima` (macOS only). Run it from a **WSL 2 terminal**. The Colima section will silently no-op since Docker Desktop's WSL 2 backend already provides the Linux VM — arm64 emulation via QEMU is handled automatically.
+
+### How It Works
+
+- The Ada binary is compiled inside the Docker image using `iot_clock_sim.gpr` (stub drivers, no hardware access)
+- A Python WebSocket bridge (`web/bridge.py`) runs **inside** the container alongside Ada, communicating over loopback — this avoids Docker UDP NAT issues
+- Only TCP port 8765 (WebSocket) is forwarded to the host
+- `web/index.html` connects to `ws://localhost:8765` and renders the clock in the browser
+
+### Troubleshooting
+
+- **Display not updating / all LEDs off:** Check `Error_Log.txt` in the Clock directory. A missing config file (most commonly `Brightness.csv`) causes the Ada main task to fail silently while child tasks keep running.
+- **Connection refused on port 8765:** The container may still be starting. Wait a few seconds and reload.
+- **Logs:** `docker logs iot-clock-sim` shows Ada stdout and bridge output.
+
 ## Runtime Configuration Files
 
 The following CSV files must be present in the working directory when the clock is started:

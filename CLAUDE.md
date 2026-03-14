@@ -69,6 +69,46 @@ Runs at 1 Hz for second-level time updates, with an inner loop at 8/16/60 Hz dep
 ### Sweep Modes
 `Normal`, `Smooth`, `With_Tail`, `Sub_Second` — controlled via general configuration or UI at runtime.
 
+## Docker Simulator
+
+A Docker-based simulator runs the clock binary with stub C drivers (no real GPIO/SPI).
+Uses `iot_clock_sim.gpr` (not `iot_clock.gpr`) which overrides `Linux_Signals` with no-op
+stubs from `src_sim/` to avoid GNAT interrupt-priority elaboration issues.
+
+```bash
+# Build image and run (WebSocket bridge on ws://localhost:8765)
+docker/run_sim.sh
+
+# Stop
+docker stop iot-clock-sim
+
+# Debug WebSocket output
+uv run --with websockets web/debug_leds_raw.py ws://localhost:8765
+```
+
+The bridge (`web/bridge.py`) runs *inside* the container on loopback; only TCP port 8765
+is exposed. Ada logs go to `Event_Log.txt` and `Error_Log.txt` in the Clock directory.
+
+## Required Config Files
+
+These CSV files must exist in the working directory (Clock/) before running the binary.
+Missing files cause Ada tasks to survive but the main loop to silently never start:
+- `General_Configuration.csv` — minimum brightness, sweep mode, gamma, volume, aplay paths
+- `Brightness.csv` — dot correction per LED (160 rows: 10 drivers × 16 channels); default
+  correction value is 31. **Missing this file raises during the declaration section of
+  `IOT_Clock`, bypassing its exception handler** — child tasks live but main loop never runs.
+- `Chimes.csv` — optional; missing it disables chiming
+- `Secondary.csv` — optional; missing it shows blank secondary display
+
+## Debugging Tips
+
+- If the clock appears alive (UI server responds) but Current_Time=0 and all LEDs off,
+  check `Error_Log.txt` — a config file is likely missing.
+- `General_Configuration` entries are protected by a `when Defined` barrier; calling any
+  getter before `Configuration.Read` completes will block forever.
+- Ada wire layout (aarch64 GNAT): `Requests` enum is 1 byte (7 values, not 4 bytes).
+  Padding before `Current_Time` is 6 bytes (not 3). See `web/bridge.py` for full layout.
+
 ## Ada-Specific Notes
 
 - Ada 2022 features are used; GNAT toolchain required
