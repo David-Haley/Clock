@@ -2,8 +2,10 @@
 
 -- Author    : David Haley
 -- Created   : 02/07/2019
--- Last Edit : 09/04/2025
+-- Last Edit : 15/03/2026
 
+-- 20260315 : Return default corrections when brightness file is missing
+--            instead of re-raising, preventing silent main task termination.
 -- 20250409 : Reporting of brightness file modification time.
 -- 20250405 : Minimum_Brightness, Chime_Brightness and Gamma removed to gereral
 -- configuration. DJH.Parse_CSV used to read in corrections. Brightness Records
@@ -65,7 +67,9 @@ package body Brightness is
                  Local_Image (Modification_Time (Compose (Name => File_Name,
                  Extension => Backup_Extension))));
             else
-               raise CSV_Error with "Brightness file not found";
+               Put_Event ("Brightness backup file not found, using default" &
+                            " corrections (" & Default_Correction'Img & ").");
+               return Dot_Correction;
             end if; -- Exists (Compose (Name => File_Name ...
          end if; -- Exists (Compose (Name => File_Name ...
       exception
