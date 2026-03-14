@@ -120,6 +120,7 @@ Ada declarations (check `Error_Log.txt` for the filename).
 - Ada wire layout (aarch64 GNAT): `Requests` enum is 1 byte (7 values, not 4 bytes).
   Padding before `Current_Time` is 6 bytes (not 3). See `web/bridge.py` for full layout.
 
+
 ## Ada-Specific Notes
 
 - Ada 2022 features are used; GNAT toolchain required
