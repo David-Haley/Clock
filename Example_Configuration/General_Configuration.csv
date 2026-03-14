@@ -1,0 +1,2 @@
+Minimum_Brightness, Minimum_Chime, Sweep_Mode, Gamma, Default_Volume, Volume_Command, Play_Command
+1,6,Smooth,2.5,62,/usr/bin/amixer -q -M sset PCM,/usr/bin/aplay -q

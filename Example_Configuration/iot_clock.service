@@ -1,0 +1,14 @@
+[Unit]
+Description= IOT_Clock digital clock with dedicated hardware
+After= network.target
+
+[Service]
+Type= simple
+User= david
+WorkingDirectory= /home/david/Clock/
+ExecStart= /home/david/Clock/iot_clock
+TimeoutStopSec= 100
+Restart= no
+
+[Install]
+WantedBy= multi-user.target

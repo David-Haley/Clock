@@ -9,4 +9,4 @@ Software for a clock based on purpose built hardware driven by a Raspberry Pi 3B
 ## Other Libraries
 Events_and_Errors and Parse_CSV from DJH repository
 SPI, GPIO and TLC5940 from Pi_Common repository
-SPI interface from Pi_Common_C repository.
+SPI_interface gpio_driver from Pi_Common_C repository.

@@ -1,0 +1,4 @@
+Arbitrary, 5, Tens_Months, Segment_a, Segment_b, Segment_c, Segment_e, Segment_f, Segment_g, Units_Months, Segment_b, Segment_c, Segment_d, Segment_e, Segment_f
+DDMMYY, 10
+Arbitrary, 5, Tens_Months, Segment_a, Segment_b, Segment_c, Segment_e, Segment_f, Units_Months, Segment_a, Segment_b, Segment_d, Segment_e, Segment_g
+Time_Zone, 10, 2025-04-05 14:00:00, 720, 2025-09-27 14:00:00, 780, 2026-04-04 14:00:00, 720, 2026-09-26 14:00:00, 780
