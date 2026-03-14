@@ -6,19 +6,20 @@ Software for a clock based on purpose built hardware driven by a Raspberry Pi 3B
  The hardware suports automatic brightness control over a 4095 to one range with 64 levels of analogue brightness compensation to match the brightness of individual LEDs and segments.
  The clock can chime by playing arbitrary .wav files (uses amixer and aplay).
 
-## Platform Requirement
+## Hardware Target
 
-**This project can only be compiled and run on a Raspberry Pi 3B running Linux (Raspberry Pi OS / Raspbian).**
+The hardware binary targets a Raspberry Pi 3B running Raspberry Pi OS (Linux, aarch64). The physical clock is built around this platform. Other Pi models with compatible GPIO/SPI/I2C pin layouts may work, but have not been tested.
 
-The C drivers use Linux-specific kernel interfaces that do not exist on macOS or Windows:
+The C drivers require Linux-specific kernel interfaces:
 - `/dev/gpiochip0` — GPIO via libgpiod
 - `/dev/spidev0.0`, `/dev/spidev0.1` — SPI for TLC5940 LED drivers and ADC
 - `/dev/i2c-0`, `/dev/i2c-1` — I2C for display controller
-- Kernel headers: `linux/spi/spidev.h`, `linux/i2c-dev.h`
+
+These do not exist on macOS or Windows. Use the [simulator](#running-the-simulator) to run on non-Pi hardware.
 
 ## Build Prerequisites (on Raspberry Pi OS)
 
-Install the following before attempting to build:
+Install the following prerequisites:
 
 ```bash
 # Ada 2022 compiler and GPRBuild
