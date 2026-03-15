@@ -11,9 +11,10 @@
     --border:    #2a2a2a;
     --text:      #cccccc;
     --dim:       #444;
-    --active:    #f0c040;
-    --marker:    #40c0f0;
-    --seg-on:    #f0c040;
+    --led-color: #ff8c00;
+    --led-off:   #3a2010;
+    --marker:    #ff8c00;
+    --seg-on:    #ff8c00;
     --seg-off:   #1e1e1e;
     --conn-ok:   #40c040;
     --conn-bad:  #c04040;
@@ -28,11 +29,50 @@
     align-items: center;
     padding: 20px;
     min-height: 100vh;
-    gap: 20px;
+    gap: 16px;
   }
   h1 { font-size: 1.1rem; color: var(--dim); letter-spacing: 0.2em; }
 
-  /* ── Layout ────────────────────────────────────────────── */
+  /* ── Config bar ─────────────────────────────────────────────── */
+  #config-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--dim);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .swatch {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .swatch:hover, .swatch.active { border-color: #ccc; }
+  #custom-color {
+    width: 24px; height: 24px;
+    border: none; border-radius: 50%;
+    cursor: pointer; padding: 0;
+    background: none;
+    vertical-align: middle;
+  }
+  #config-bar button:not(.swatch) {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  #config-bar button:not(.swatch):hover { border-color: #555; }
+  .sep { color: #333; }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
   #main {
     display: flex;
     gap: 24px;
@@ -40,12 +80,37 @@
     flex-wrap: wrap;
     justify-content: center;
   }
-  #clock-face { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  #clock-face { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
-  /* ── Sweep ring ─────────────────────────────────────────── */
+  /* ── Board wrapper ──────────────────────────────────────────── */
+  #board-wrapper {
+    position: relative;
+    display: inline-block;
+  }
   #sweep-svg { display: block; }
 
-  /* ── 7-segment displays ─────────────────────────────────── */
+  /* ── Display overlay (inside board) ────────────────────────── */
+  #displays-overlay {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.72);
+    transform-origin: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  /* ── Display below mode ─────────────────────────────────────── */
+  #displays-below {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ── 7-segment displays ─────────────────────────────────────── */
   .display-row {
     display: flex;
     align-items: center;
@@ -62,7 +127,7 @@
   }
   .digit-svg { display: block; }
 
-  /* ── Status panel ───────────────────────────────────────── */
+  /* ── Status panel ───────────────────────────────────────────── */
   #status {
     background: var(--panel-bg);
     border: 1px solid var(--border);
@@ -81,7 +146,7 @@
   .ok  { color: var(--conn-ok);  }
   .bad { color: var(--conn-bad); }
 
-  /* ── Controls ───────────────────────────────────────────── */
+  /* ── Controls ───────────────────────────────────────────────── */
   #controls {
     background: var(--panel-bg);
     border: 1px solid var(--border);
@@ -104,36 +169,85 @@
 <body>
 <h1>IOT CLOCK SIMULATOR</h1>
 
+<div id="config-bar">
+  <span>LED colour:</span>
+  <button class="swatch active" style="background:#ff8c00" data-color="#ff8c00" title="Amber"></button>
+  <button class="swatch" style="background:#ff3030" data-color="#ff3030" title="Red"></button>
+  <button class="swatch" style="background:#30ff60" data-color="#30ff60" title="Green"></button>
+  <button class="swatch" style="background:#4090ff" data-color="#4090ff" title="Blue"></button>
+  <button class="swatch" style="background:#ffffff" data-color="#ffffff" title="White"></button>
+  <input type="color" id="custom-color" value="#ff8c00" title="Custom colour">
+  <span class="sep">|</span>
+  <button id="display-mode-btn">Displays: Inside</button>
+  <button id="pcb-details-btn">PCB detail: On</button>
+</div>
+
 <div id="main">
   <div id="clock-face">
-    <!-- Sweep ring -->
-    <svg id="sweep-svg" width="340" height="340" viewBox="0 0 340 340">
-      <g id="sweep-leds"></g>
-    </svg>
+    <div id="board-wrapper">
+      <!-- Square PCB board + sweep ring -->
+      <svg id="sweep-svg" width="340" height="340" viewBox="0 0 340 340">
+        <defs>
+          <filter id="led-glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="3.5" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <g id="pcb-details">
+          <!-- PCB board background -->
+          <rect x="10" y="10" width="320" height="320" rx="6" ry="6"
+                fill="#0d2010" stroke="#1a4020" stroke-width="1.5"/>
+          <!-- Corner screws -->
+          <circle cx="22" cy="22" r="5" fill="#1a3a18" stroke="#2a5a28" stroke-width="1"/>
+          <line x1="19" y1="22" x2="25" y2="22" stroke="#0a1a0a" stroke-width="0.8"/>
+          <line x1="22" y1="19" x2="22" y2="25" stroke="#0a1a0a" stroke-width="0.8"/>
+          <circle cx="318" cy="22" r="5" fill="#1a3a18" stroke="#2a5a28" stroke-width="1"/>
+          <line x1="315" y1="22" x2="321" y2="22" stroke="#0a1a0a" stroke-width="0.8"/>
+          <line x1="318" y1="19" x2="318" y2="25" stroke="#0a1a0a" stroke-width="0.8"/>
+          <circle cx="318" cy="318" r="5" fill="#1a3a18" stroke="#2a5a28" stroke-width="1"/>
+          <line x1="315" y1="318" x2="321" y2="318" stroke="#0a1a0a" stroke-width="0.8"/>
+          <line x1="318" y1="315" x2="318" y2="321" stroke="#0a1a0a" stroke-width="0.8"/>
+          <circle cx="22" cy="318" r="5" fill="#1a3a18" stroke="#2a5a28" stroke-width="1"/>
+          <line x1="19" y1="318" x2="25" y2="318" stroke="#0a1a0a" stroke-width="0.8"/>
+          <line x1="22" y1="315" x2="22" y2="321" stroke="#0a1a0a" stroke-width="0.8"/>
+          <!-- Silk-screen label -->
+          <text x="170" y="172" text-anchor="middle" fill="#1a4020"
+                font-family="monospace" font-size="9" letter-spacing="3">IOT CLOCK</text>
+        </g>
+        <g id="sweep-leds"></g>
+      </svg>
 
-    <!-- Primary display: HH:MM:SS -->
-    <div class="display-row" id="primary-display">
-      <svg class="digit-svg" id="d-th" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-uh" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <span class="display-sep">:</span>
-      <svg class="digit-svg" id="d-tm" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-um" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <span class="display-sep">:</span>
-      <svg class="digit-svg" id="d-ts" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-us" width="34" height="58" viewBox="0 0 34 58"></svg>
-    </div>
+      <!-- Displays overlaid inside board (inside mode default) -->
+      <div id="displays-overlay">
+        <div class="display-row" id="primary-display">
+          <svg class="digit-svg" id="d-th" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-uh" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <span class="display-sep">:</span>
+          <svg class="digit-svg" id="d-tm" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-um" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <span class="display-sep">:</span>
+          <svg class="digit-svg" id="d-ts" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-us" width="34" height="58" viewBox="0 0 34 58"></svg>
+        </div>
+        <div class="display-row" id="secondary-display">
+          <svg class="digit-svg" id="d-td"  width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-ud"  width="34" height="58" viewBox="0 0 34 58"></svg>
+          <span class="display-sep">/</span>
+          <svg class="digit-svg" id="d-tmo" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-umo" width="34" height="58" viewBox="0 0 34 58"></svg>
+          <span class="display-sep">/</span>
+          <svg class="digit-svg" id="d-ty"  width="34" height="58" viewBox="0 0 34 58"></svg>
+          <svg class="digit-svg" id="d-uy"  width="34" height="58" viewBox="0 0 34 58"></svg>
+        </div>
+      </div>
+    </div><!-- /board-wrapper -->
 
-    <!-- Secondary display: DD/MM/YYYY -->
-    <div class="display-row" id="secondary-display">
-      <svg class="digit-svg" id="d-td" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-ud" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <span class="display-sep">/</span>
-      <svg class="digit-svg" id="d-tmo" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-umo" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <span class="display-sep">/</span>
-      <svg class="digit-svg" id="d-ty" width="34" height="58" viewBox="0 0 34 58"></svg>
-      <svg class="digit-svg" id="d-uy" width="34" height="58" viewBox="0 0 34 58"></svg>
-    </div>
+    <!-- Below-mode container (populated by JS when mode=below) -->
+    <div id="displays-below"></div>
+
   </div><!-- /clock-face -->
 
   <div style="display:flex;flex-direction:column;gap:16px;">
@@ -211,41 +325,19 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── 7-segment geometry (in a 34×58 viewBox) ──────────────────────────────
-// Polygons match standard 7-seg appearance. Segments named a..g, dp.
 const SEG_PATHS = {
-  //  top horizontal
   a:  "M4,2 L30,2 L28,7 L6,7 Z",
-  //  top-right vertical
   b:  "M30,4 L34,6 L33,27 L29,25 L29,5 Z",
-  //  bottom-right vertical
   c:  "M29,31 L33,29 L34,52 L30,54 L29,53 Z",
-  //  bottom horizontal
   d:  "M6,51 L28,51 L30,56 L4,56 Z",
-  //  bottom-left vertical
   e:  "M0,29 L4,31 L4,53 L0,52 L1,29 Z",
-  //  top-left vertical
   f:  "M0,6 L5,5 L5,25 L1,27 L0,26 Z",
-  //  middle horizontal
   g:  "M5,27 L7,24 L27,24 L29,27 L27,30 L7,30 Z",
-  //  decimal point
   dp: "M31,51 A3,3 0 1 1 31.001,51 Z",
 };
 
-// Segment on/off for digits 0-9 (order: a,b,c,d,e,f,g)
-const DIGIT_SEGS = {
-  0: [1,1,1,1,1,1,0],
-  1: [0,1,1,0,0,0,0],
-  2: [1,1,0,1,1,0,1],
-  3: [1,1,1,1,0,0,1],
-  4: [0,1,1,0,0,1,1],
-  5: [1,0,1,1,0,1,1],
-  6: [1,0,1,1,1,1,1],
-  7: [1,1,1,0,0,0,0],
-  8: [1,1,1,1,1,1,1],
-  9: [1,1,1,1,0,1,1],
-};
-
-// Build the static SVG structure for a digit, return {el, setDigit(leds)}
+// Build the static SVG structure for a digit; returns a setter function.
+// Segments use fill-opacity so --seg-on color changes are reflected instantly.
 function buildDigit(svgEl) {
   const ns = "http://www.w3.org/2000/svg";
   const paths = {};
@@ -253,17 +345,18 @@ function buildDigit(svgEl) {
   names.forEach(name => {
     const p = document.createElementNS(ns, 'path');
     p.setAttribute('d', SEG_PATHS[name]);
-    p.setAttribute('fill', 'var(--seg-off)');
+    p.setAttribute('fill', 'var(--seg-on)');
+    p.setAttribute('fill-opacity', '0.08');
     svgEl.appendChild(p);
     paths[name] = p;
   });
 
   return function setSegs(ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7) {
-    // channels: 0=a, 1=b, 2=c, 3=d, 4=e, 5=f, 6=g, 7=dp
     const vals = [ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7];
     const segNames = ['a','b','c','d','e','f','g','dp'];
     segNames.forEach((name, i) => {
-      paths[name].setAttribute('fill', vals[i] ? 'var(--seg-on)' : 'var(--seg-off)');
+      const intensity = ledIntensity(vals[i]);
+      paths[name].setAttribute('fill-opacity', (0.08 + intensity * 0.92).toFixed(3));
     });
   };
 }
@@ -304,70 +397,59 @@ function applyDigitSecondary(setterId, leds_row, tens) {
   );
 }
 
-// ── Sweep ring ─────────────────────────────────────────────────────────────
-const SWEEP_CX = 170, SWEEP_CY = 170, SWEEP_R = 145;
-const sweepSvg = document.getElementById('sweep-leds');
-
-// Pre-create 64 circles: 60 sweep + 4 markers
-const sweepEls = [];   // index: 0-59 = sweep positions, 60-63 = markers 0,15,30,45
-const ns = "http://www.w3.org/2000/svg";
-
-function sweepAngle(pos) {
-  // pos 0 = 12 o'clock; increases clockwise
-  return (pos / 60) * 2 * Math.PI - Math.PI / 2;
+// ── Sweep LEDs: square perimeter ──────────────────────────────────────────
+// Positions 0-59, starting at top-center (12 o'clock), clockwise.
+// M=30 (margin from SVG edge), side length S=280 (340 - 2*30).
+// Parameterised by arc-length L along the perimeter (total = 4*S = 1120).
+// Corners: TL=(30,30), TR=(310,30), BR=(310,310), BL=(30,310)
+function sweepPos(p) {
+  const M = 30, S = 280, C = 170;
+  const L = p * (4 * S / 60);       // arc-length position, 0 → 4*S
+  if (L < S/2)          return [C + L,               M];           // top: center → TR
+  if (L < S/2 + S)      return [M+S,                 M + (L - S/2)];         // right ↓
+  if (L < S/2 + 2*S)    return [M+S - (L-S/2-S),    M+S];         // bottom ←
+  if (L < S/2 + 3*S)    return [M,                   M+S - (L-S/2-2*S)];    // left ↑
+  return                       [M + (L-S/2-3*S),     M];           // top: TL → center
 }
 
-// Sweep LEDs (positions 0-59)
+const sweepSvg = document.getElementById('sweep-leds');
+const ns = "http://www.w3.org/2000/svg";
+
+// Pre-create sweep LED circles (positions 0-59)
+const sweepEls = [];
 for (let i = 0; i < 60; i++) {
-  const angle = sweepAngle(i);
-  const cx = SWEEP_CX + SWEEP_R * Math.cos(angle);
-  const cy = SWEEP_CY + SWEEP_R * Math.sin(angle);
+  const [cx, cy] = sweepPos(i);
   const c = document.createElementNS(ns, 'circle');
   c.setAttribute('cx', cx.toFixed(1));
   c.setAttribute('cy', cy.toFixed(1));
-  c.setAttribute('r', '5');
-  c.setAttribute('fill', 'var(--dim)');
+  c.setAttribute('r', '5.5');
+  c.setAttribute('fill', 'var(--led-color)');
+  c.setAttribute('fill-opacity', '0.08');
   sweepSvg.appendChild(c);
   sweepEls.push(c);
 }
 
-// Marker LEDs at 0, 15, 30, 45 positions
+// Pre-create marker LED circles at positions 0, 15, 30, 45
 const MARKER_POSITIONS = [0, 15, 30, 45];
 const markerEls = [];
 MARKER_POSITIONS.forEach(pos => {
-  const angle = sweepAngle(pos);
-  const cx = SWEEP_CX + SWEEP_R * Math.cos(angle);
-  const cy = SWEEP_CY + SWEEP_R * Math.sin(angle);
+  const [cx, cy] = sweepPos(pos);
   const c = document.createElementNS(ns, 'circle');
   c.setAttribute('cx', cx.toFixed(1));
   c.setAttribute('cy', cy.toFixed(1));
   c.setAttribute('r', '8');
-  c.setAttribute('fill', 'var(--dim)');
+  c.setAttribute('fill', 'var(--led-color)');
+  c.setAttribute('fill-opacity', '0.12');
   sweepSvg.appendChild(c);
   markerEls.push(c);
 });
 
-// Tick marks at 5-second intervals (subtle background marks)
-for (let i = 0; i < 60; i += 5) {
-  const angle = sweepAngle(i);
-  const inner = SWEEP_R - 16, outer = SWEEP_R + 16;
-  const line = document.createElementNS(ns, 'line');
-  line.setAttribute('x1', (SWEEP_CX + inner * Math.cos(angle)).toFixed(1));
-  line.setAttribute('y1', (SWEEP_CY + inner * Math.sin(angle)).toFixed(1));
-  line.setAttribute('x2', (SWEEP_CX + outer * Math.cos(angle)).toFixed(1));
-  line.setAttribute('y2', (SWEEP_CY + outer * Math.sin(angle)).toFixed(1));
-  line.setAttribute('stroke', '#222');
-  line.setAttribute('stroke-width', '1');
-  sweepSvg.insertBefore(line, sweepSvg.firstChild);
+// ── Dimming-ready intensity helper ────────────────────────────────────────
+// Handles current boolean values and future numeric (0-4095) values.
+function ledIntensity(v) {
+  if (typeof v === 'boolean') return v ? 1.0 : 0.0;
+  return Math.min(1.0, Math.max(0.0, v / 4095));
 }
-
-// Center circle
-const centerCircle = document.createElementNS(ns, 'circle');
-centerCircle.setAttribute('cx', SWEEP_CX);
-centerCircle.setAttribute('cy', SWEEP_CY);
-centerCircle.setAttribute('r', '4');
-centerCircle.setAttribute('fill', 'var(--dim)');
-sweepSvg.appendChild(centerCircle);
 
 // ── LED array update ───────────────────────────────────────────────────────
 function updateLEDs(leds) {
@@ -375,10 +457,12 @@ function updateLEDs(leds) {
 
   // Sweep positions 0-59
   for (let pos = 0; pos < 60; pos++) {
-    const row = Math.floor(pos / 15);   // 0-3 for sweep drivers
+    const row = Math.floor(pos / 15);
     const col = pos % 15;
-    const on = leds[row][col];
-    sweepEls[pos].setAttribute('fill', on ? 'var(--active)' : 'var(--dim)');
+    const intensity = ledIntensity(leds[row][col]);
+    const opacity = (0.08 + intensity * 0.92).toFixed(3);
+    sweepEls[pos].setAttribute('fill-opacity', opacity);
+    sweepEls[pos].setAttribute('filter', intensity > 0.5 ? 'url(#led-glow)' : '');
   }
 
   // Markers: row=driver_index, ch=15
@@ -388,42 +472,117 @@ function updateLEDs(leds) {
   // Marker_45 → row 2 (Sweep_30_44) ch 15 → markerEls[3] at pos 45
   const markerMap = [{row:3,ch:15},{row:0,ch:15},{row:1,ch:15},{row:2,ch:15}];
   markerMap.forEach(({row, ch}, i) => {
-    const on = leds[row][ch];
-    markerEls[i].setAttribute('fill', on ? 'var(--marker)' : '#223344');
+    const intensity = ledIntensity(leds[row][ch]);
+    const opacity = (0.12 + intensity * 0.88).toFixed(3);
+    markerEls[i].setAttribute('fill-opacity', opacity);
+    markerEls[i].setAttribute('filter', intensity > 0.5 ? 'url(#led-glow)' : '');
   });
 
   // Primary digits: Hours_Drv=row 6, Minutes_Drv=row 5, Seconds_Drv=row 4
-  applyDigit('th', leds[6], true);   // tens hours
-  applyDigit('uh', leds[6], false);  // units hours
-  applyDigit('tm', leds[5], true);   // tens minutes
-  applyDigit('um', leds[5], false);  // units minutes
-  applyDigit('ts', leds[4], true);   // tens seconds
-  applyDigit('us', leds[4], false);  // units seconds
+  applyDigit('th', leds[6], true);
+  applyDigit('uh', leds[6], false);
+  applyDigit('tm', leds[5], true);
+  applyDigit('um', leds[5], false);
+  applyDigit('ts', leds[4], true);
+  applyDigit('us', leds[4], false);
 
   // Secondary digits: Days_Drv=row 9, Months_Drv=row 8, Years_Drv=row 7
-  // Secondary uses swapped channel layout (tens on ch 8-15, units on ch 0-7)
-  applyDigitSecondary('td',  leds[9], true);   // tens days
-  applyDigitSecondary('ud',  leds[9], false);  // units days
-  applyDigitSecondary('tmo', leds[8], true);   // tens months
-  applyDigitSecondary('umo', leds[8], false);  // units months
-  applyDigitSecondary('ty',  leds[7], true);   // tens years
-  applyDigitSecondary('uy',  leds[7], false);  // units years
+  applyDigitSecondary('td',  leds[9], true);
+  applyDigitSecondary('ud',  leds[9], false);
+  applyDigitSecondary('tmo', leds[8], true);
+  applyDigitSecondary('umo', leds[8], false);
+  applyDigitSecondary('ty',  leds[7], true);
+  applyDigitSecondary('uy',  leds[7], false);
 }
 
 // ── Status panel update ────────────────────────────────────────────────────
 function updateStatus(msg) {
-  document.getElementById('stat-time').textContent       = msg.time || '—';
-  document.getElementById('stat-chime').textContent      = msg.chime_enabled ? 'enabled' : 'disabled';
+  document.getElementById('stat-time').textContent         = msg.time || '—';
+  document.getElementById('stat-chime').textContent        = msg.chime_enabled ? 'enabled' : 'disabled';
   document.getElementById('stat-chime-toggle').textContent = msg.chime_toggle ? 'on' : 'off';
-  document.getElementById('stat-volume').textContent     = (msg.volume ?? '—') + '%';
-  document.getElementById('stat-ambient').textContent    = msg.ambient_light ?? '—';
-  document.getElementById('stat-item').textContent       = msg.current_item || '—';
-  document.getElementById('stat-version').textContent    = msg.clock_version || '—';
-
-  // Units-of-hours DP = chime disabled indicator (Ada comment:
-  // "Units of hours decimal point indicates chiming disabled")
-  // This is already reflected in the leds array from Ada — no separate handling needed.
+  document.getElementById('stat-volume').textContent       = (msg.volume ?? '—') + '%';
+  document.getElementById('stat-ambient').textContent      = msg.ambient_light ?? '—';
+  document.getElementById('stat-item').textContent         = msg.current_item || '—';
+  document.getElementById('stat-version').textContent      = msg.clock_version || '—';
 }
+
+// ── Configuration: LED colour ─────────────────────────────────────────────
+function setLedColor(color) {
+  const root = document.documentElement;
+  root.style.setProperty('--led-color', color);
+  root.style.setProperty('--marker', color);
+  root.style.setProperty('--seg-on', color);
+  document.getElementById('custom-color').value = color;
+  // Update swatch active state
+  document.querySelectorAll('.swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.color === color);
+  });
+  localStorage.setItem('ledColor', color);
+}
+
+// ── Configuration: display mode ───────────────────────────────────────────
+function setDisplayMode(mode) {
+  const primary   = document.getElementById('primary-display');
+  const secondary = document.getElementById('secondary-display');
+  const overlay   = document.getElementById('displays-overlay');
+  const below     = document.getElementById('displays-below');
+  const btn       = document.getElementById('display-mode-btn');
+
+  if (mode === 'inside') {
+    overlay.appendChild(primary);
+    overlay.appendChild(secondary);
+    overlay.style.display = '';
+    below.style.display = 'none';
+    btn.textContent = 'Displays: Inside';
+  } else {
+    below.appendChild(primary);
+    below.appendChild(secondary);
+    overlay.style.display = 'none';
+    below.style.display = 'flex';
+    btn.textContent = 'Displays: Below';
+  }
+  localStorage.setItem('displayMode', mode);
+}
+
+// ── Configuration: PCB detail ─────────────────────────────────────────────
+function setPcbDetails(show) {
+  const group = document.getElementById('pcb-details');
+  const btn   = document.getElementById('pcb-details-btn');
+  group.style.display = show ? '' : 'none';
+  btn.textContent = show ? 'PCB detail: On' : 'PCB detail: Off';
+  localStorage.setItem('pcbDetails', show ? '1' : '0');
+}
+
+// ── Restore persisted preferences ─────────────────────────────────────────
+(function restorePrefs() {
+  const color = localStorage.getItem('ledColor');
+  if (color) setLedColor(color);
+
+  const mode = localStorage.getItem('displayMode');
+  if (mode === 'below') setDisplayMode('below');
+
+  const pcb = localStorage.getItem('pcbDetails');
+  if (pcb === '0') setPcbDetails(false);
+})();
+
+// ── Config bar event listeners ─────────────────────────────────────────────
+document.querySelectorAll('.swatch').forEach(btn => {
+  btn.addEventListener('click', () => setLedColor(btn.dataset.color));
+});
+
+document.getElementById('custom-color').addEventListener('input', e => {
+  setLedColor(e.target.value);
+});
+
+document.getElementById('display-mode-btn').addEventListener('click', () => {
+  const current = localStorage.getItem('displayMode') || 'inside';
+  setDisplayMode(current === 'inside' ? 'below' : 'inside');
+});
+
+document.getElementById('pcb-details-btn').addEventListener('click', () => {
+  const current = localStorage.getItem('pcbDetails');
+  setPcbDetails(current === '0' ? true : false);
+});
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
 const WS_URL = 'ws://localhost:8765';
@@ -467,7 +626,7 @@ connect();
 const KEY_MAP = {
   'c': 'Toggle_Chime',
   '+': 'Volume_Up',
-  '=': 'Volume_Up',   // shifted + on US keyboard
+  '=': 'Volume_Up',
   '-': 'Volume_Down',
   't': 'Volume_Test',
   's': 'Cycle_Sweep',
