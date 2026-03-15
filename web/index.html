@@ -333,7 +333,7 @@ const SEG_PATHS = {
   e:  "M0,29 L4,31 L4,53 L0,52 L1,29 Z",
   f:  "M0,6 L5,5 L5,25 L1,27 L0,26 Z",
   g:  "M5,27 L7,24 L27,24 L29,27 L27,30 L7,30 Z",
-  dp: "M31,51 A3,3 0 1 1 31.001,51 Z",
+  dp: "M29,54 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0",
 };
 
 // Build the static SVG structure for a digit; returns a setter function.
@@ -397,19 +397,15 @@ function applyDigitSecondary(setterId, leds_row, tens) {
   );
 }
 
-// ── Sweep LEDs: square perimeter ──────────────────────────────────────────
-// Positions 0-59, starting at top-center (12 o'clock), clockwise.
-// M=30 (margin from SVG edge), side length S=280 (340 - 2*30).
-// Parameterised by arc-length L along the perimeter (total = 4*S = 1120).
-// Corners: TL=(30,30), TR=(310,30), BR=(310,310), BL=(30,310)
-function sweepPos(p) {
-  const M = 30, S = 280, C = 170;
-  const L = p * (4 * S / 60);       // arc-length position, 0 → 4*S
-  if (L < S/2)          return [C + L,               M];           // top: center → TR
-  if (L < S/2 + S)      return [M+S,                 M + (L - S/2)];         // right ↓
-  if (L < S/2 + 2*S)    return [M+S - (L-S/2-S),    M+S];         // bottom ←
-  if (L < S/2 + 3*S)    return [M,                   M+S - (L-S/2-2*S)];    // left ↑
-  return                       [M + (L-S/2-3*S),     M];           // top: TL → center
+// ── Sweep LEDs: circular ring on square PCB ───────────────────────────────
+// 60 sweep LEDs on a circle; 4 markers inset by ~1 LED spacing.
+const SWEEP_CX = 170, SWEEP_CY = 170, SWEEP_R = 145;
+// LED-to-LED arc spacing at SWEEP_R ≈ 2π*145/60 ≈ 15px → markers ~15px inward
+const MARKER_R = 130;
+
+function sweepAngle(pos) {
+  // pos 0 = 12 o'clock; increases clockwise
+  return (pos / 60) * 2 * Math.PI - Math.PI / 2;
 }
 
 const sweepSvg = document.getElementById('sweep-leds');
@@ -418,10 +414,10 @@ const ns = "http://www.w3.org/2000/svg";
 // Pre-create sweep LED circles (positions 0-59)
 const sweepEls = [];
 for (let i = 0; i < 60; i++) {
-  const [cx, cy] = sweepPos(i);
+  const angle = sweepAngle(i);
   const c = document.createElementNS(ns, 'circle');
-  c.setAttribute('cx', cx.toFixed(1));
-  c.setAttribute('cy', cy.toFixed(1));
+  c.setAttribute('cx', (SWEEP_CX + SWEEP_R * Math.cos(angle)).toFixed(1));
+  c.setAttribute('cy', (SWEEP_CY + SWEEP_R * Math.sin(angle)).toFixed(1));
   c.setAttribute('r', '5.5');
   c.setAttribute('fill', 'var(--led-color)');
   c.setAttribute('fill-opacity', '0.08');
@@ -429,14 +425,14 @@ for (let i = 0; i < 60; i++) {
   sweepEls.push(c);
 }
 
-// Pre-create marker LED circles at positions 0, 15, 30, 45
+// Pre-create marker LED circles at positions 0, 15, 30, 45 — inset from sweep ring
 const MARKER_POSITIONS = [0, 15, 30, 45];
 const markerEls = [];
 MARKER_POSITIONS.forEach(pos => {
-  const [cx, cy] = sweepPos(pos);
+  const angle = sweepAngle(pos);
   const c = document.createElementNS(ns, 'circle');
-  c.setAttribute('cx', cx.toFixed(1));
-  c.setAttribute('cy', cy.toFixed(1));
+  c.setAttribute('cx', (SWEEP_CX + MARKER_R * Math.cos(angle)).toFixed(1));
+  c.setAttribute('cy', (SWEEP_CY + MARKER_R * Math.sin(angle)).toFixed(1));
   c.setAttribute('r', '8');
   c.setAttribute('fill', 'var(--led-color)');
   c.setAttribute('fill-opacity', '0.12');
