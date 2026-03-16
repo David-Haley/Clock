@@ -22,10 +22,12 @@ if docker ps -q --filter "name=^${CONTAINER_NAME}$" | grep -q .; then
     docker stop "$CONTAINER_NAME" 2>/dev/null || true
 fi
 
-# ── Ensure Colima is running ─────────────────────────────────────────────────
-if ! colima status --profile aarch64 2>/dev/null | grep -q "Running"; then
-    echo "Starting Colima aarch64 profile..."
-    colima start --profile aarch64 --arch aarch64 --vm-type vz --vz-rosetta
+# ── Ensure Colima is running (macOS only) ────────────────────────────────────
+if command -v colima &>/dev/null; then
+    if ! colima status --profile aarch64 2>/dev/null | grep -q "Running"; then
+        echo "Starting Colima aarch64 profile..."
+        colima start --profile aarch64 --arch aarch64 --vm-type vz --vz-rosetta
+    fi
 fi
 
 # ── Build Docker image ───────────────────────────────────────────────────────
