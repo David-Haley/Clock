@@ -214,7 +214,7 @@ async def poll_clock(udp: socket.socket) -> None:
             udp.sendto(pkt, (CLOCK_HOST, REQUEST_PORT))
         except Exception:
             pass
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.125)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 async def main() -> None:
