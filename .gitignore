@@ -3,3 +3,12 @@ obj/
 obj_sim/
 
 Test_Area/
+
+# Clock configurations
+Brightness.csv
+Error_Log.txt
+Event_Log.txt
+General_Configuration.csv
+Secondary.csv
+volume_test.wav
+
