@@ -1,3 +1,7 @@
+with "libgpiod.gpr";
+with "../Pi_Common/lib_mosquitto.gpr";
+
+
 project Iot_Clock is
 
    for Source_Dirs use ("src", "../DJH/src", "../DJH/src", "../Pi_Common/src", "../Pi_Common_C/src");

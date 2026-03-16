@@ -1,2 +1,2 @@
-Minimum_Brightness,Minimum_Chime,Sweep_Mode,Gamma,Default_Volume,Play_Command,Volume_Command
-1,4095,Normal,2.0,0,echo,echo
+Minimum_Brightness,Minimum_Chime,Sweep_Mode,Gamma,Default_Volume,Play_Command,Volume_Command,Scroll_Delay_Ms,Force_Uppercase_Default,MQTT_Broker_Host,MQTT_Broker_Port,MQTT_User_Name,MQTT_Password,MQTT_QoS,MQTT_Keep_Alive
+1,4095,Normal,2.0,0,echo,echo,500,True,,1883,,,,0,60

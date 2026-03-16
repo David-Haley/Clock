@@ -1,2 +1,2 @@
-Minimum_Brightness, Minimum_Chime, Sweep_Mode, Gamma, Default_Volume, Volume_Command, Play_Command
-1,6,Smooth,2.5,62,/usr/bin/amixer -q -M sset PCM,/usr/bin/aplay -q
+Minimum_Brightness,Minimum_Chime,Sweep_Mode,Gamma,Default_Volume,Play_Command,Volume_Command,Scroll_Delay_Ms,Force_Uppercase_Default,MQTT_Broker_Host,MQTT_Broker_Port,MQTT_User_Name,MQTT_Password,MQTT_QoS,MQTT_Keep_Alive
+1,6,Smooth,2.5,62,/usr/bin/aplay -q,/usr/bin/amixer -q -M sset PCM,500,True,localhost,1883,,, 0,60

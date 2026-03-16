@@ -65,6 +65,7 @@ with Chime; use Chime;
 with Secondary_Display; use Secondary_Display;
 with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
+with MQTT_Display; use MQTT_Display;
 
 procedure IOT_Clock is
 
@@ -224,6 +225,7 @@ begin -- IOT_Clock
    Put_Event ("IOT_Clock version " & Clock_Version & " started");
    Initialise_Hardware (Dot_Correction);
    Initialise_Secondary_Display;
+   Start_MQTT_Display;
    loop -- One second loop
       delay until Next_Time;
       if Clock < Next_Time - Time_Step or Clock > Next_Time + Time_Step then
@@ -285,6 +287,7 @@ begin -- IOT_Clock
    -- stop other tasks to allow termination
    End_Chiming;
    Stop_UI_Server;
+   Stop_MQTT_Display;
    Put_Event ("IOT_Clock stopped (user request)");
    Stop_Events;
    Handlers.Remove;
@@ -292,6 +295,7 @@ exception
    when Event: others =>
       Put_Error ("**** Unhandled Exception ****", Event);
       Stop_UI_Server;
+      Stop_MQTT_Display;
       End_Chiming;
       Stop_Events;
       Handlers.Remove;

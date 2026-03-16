@@ -56,11 +56,15 @@ with Ada.Strings.Maps; use Ada.Strings.Maps;
 with Ada.Strings.Equal_Case_Insensitive;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
+with Ada.Real_Time; use Ada.Real_Time;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with LED_Declarations; use LED_Declarations;
 with Clock_Driver; use Clock_Driver;
 with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
+with Segment_Map; use Segment_Map;
+with Display_Message_Queue; use Display_Message_Queue;
+with General_Configuration;
 
 package body Secondary_Display is
 
@@ -354,6 +358,19 @@ package body Secondary_Display is
    Dynamic, First_Run, First_Time : Boolean := True;
    Run, File_Read : Boolean := False;
 
+   -- Scroll state for MQTT display messages
+   Scroll_Active      : Boolean             := False;
+   Pending_Switch     : Boolean             := False;
+   Current_Message    : Display_Messages;
+   Plays_Remaining    : Natural             := 0;
+   Infinite_Repeat    : Boolean             := False;
+   Scroll_Char_Pos    : Natural             := 0;
+   Scroll_Seq_Length  : Natural             := 0;
+   type Scroll_Buffer is array (Secondary_Digits) of Segment_Sets;
+   Current_Buffer     : Scroll_Buffer       := (others => Blank_Segments);
+   Next_Scroll_Time   : Ada.Real_Time.Time  := Ada.Real_Time.Time_First;
+   Effective_Delay_Ms : Natural             := 500;
+
    procedure Resync_Secondary is
       -- causes secondary display to be cleared and restartes at 00 seconds.
 
@@ -369,6 +386,59 @@ package body Secondary_Display is
       Report_Current_Item (Head ("Blank - Resync_Secondary",
                                  UI_Strings'Length));
    end Resync_Secondary;
+
+   procedure Render_Scroll_Frame (Display_Brightness : in Greyscales) is
+      -- Render the current scroll buffer to hardware for all secondary digits.
+
+   begin -- Render_Scroll_Frame
+      for Digit in Secondary_Digits loop
+         for Seg in Segments loop
+            Set_Greyscale (Display_Array (Digit).Driver,
+                           Display_Array (Digit).Segment_Array (Seg),
+                           (if Current_Buffer (Digit)(Seg)
+                            then Display_Brightness
+                            else Greyscales'First));
+         end loop; -- Seg in Segments
+      end loop; -- Digit in Secondary_Digits
+   end Render_Scroll_Frame;
+
+   procedure Rotate_And_Insert (New_Segs : in Segment_Sets) is
+      -- Shift scroll buffer left and insert new segments on the right.
+
+   begin -- Rotate_And_Insert
+      Current_Buffer (Tens_Days)    := Current_Buffer (Units_Days);
+      Current_Buffer (Units_Days)   := Current_Buffer (Tens_Months);
+      Current_Buffer (Tens_Months)  := Current_Buffer (Units_Months);
+      Current_Buffer (Units_Months) := Current_Buffer (Tens_Years);
+      Current_Buffer (Tens_Years)   := Current_Buffer (Units_Years);
+      Current_Buffer (Units_Years)  := New_Segs;
+   end Rotate_And_Insert;
+
+   procedure Start_Next_Message is
+      -- Dequeue next message from priority queue and initialize scroll state.
+
+      Found : Boolean;
+
+   begin -- Start_Next_Message
+      Dequeue_Next (Current_Message, Found);
+      if not Found then
+         Scroll_Active := False;
+         return;
+      end if; -- not Found
+      Scroll_Active      := True;
+      Pending_Switch     := False;
+      Scroll_Char_Pos    := 1;
+      Scroll_Seq_Length  := Length (Current_Message.Text) + 6;
+      Current_Buffer     := (others => Blank_Segments);
+      Infinite_Repeat    := (Current_Message.Repeat_Count = 0);
+      Plays_Remaining    := (if Infinite_Repeat then 1
+                             else Current_Message.Repeat_Count);
+      Effective_Delay_Ms :=
+        (if Current_Message.Scroll_Delay_Ms > 0
+         then Current_Message.Scroll_Delay_Ms
+         else General_Configuration.Scroll_Delay_Ms);
+      Next_Scroll_Time := Ada.Real_Time.Clock;
+   end Start_Next_Message;
 
    procedure Initialise_Secondary_Display is
 
@@ -409,82 +479,142 @@ package body Secondary_Display is
       Last : Natural;
       Display_Item : Display_Items;
       Item_Duration : Second_Number;
+      Now : Ada.Real_Time.Time;
+      Next_Char : Character;
 
    begin -- Update_Secondary
-      Run := (Run or Second (Current_Time) = 0) and not Is_Empty (Item_List);
-      -- Syncronise first run with 0 seconds, stop if the list ie empty or
-      -- becomes empty.
-      if Run then
-         -- something to display
-         if Dynamic and Step_Display and not First_Run then
-            -- item to be displayed may change
-            if Time_Remaining > 1 then
-               -- continue with displaying the same item
-               Time_Remaining := Time_Remaining - 1;
-               First_Time := False;
-            else
-               -- select the new item
-               First_Time := True;
-               Next (Item_Cursor);
-               if Item_Cursor /= Item_Lists.No_Element then
-                  Item_Number := @ + 1;
-               else
-                  if not Exists (File_Name) or else
-                    File_Time /= Modification_Time (File_Name) then
-                     -- The secondary file has been removed, replaced or
-                     -- modified.
-                     Initialise_Secondary_Display;
-                  end if; -- File_Time /= Modification_Time (File_Name)
-                  Item_Cursor := Item_Lists.First (Item_List);
-                  Item_Number := 1;
-               end if; -- Item_Cursor /= Item_Lists.No_Element
-            end if; --  Time_Remaining > 1
-         end if; --  Dynamic and Step_Display and not First_Run
-         if Item_Cursor /= Item_Lists.No_Element then
-            -- parse current item
-            Text := Item_List (Item_Cursor);
-            Report_Current_Item (Head (To_String (Text),
-                                 UI_Strings'Length, ' '));
-            Start_At := 1;
-            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-            Start_At := Last + 1;
-            Display_Item := Display_Items'Value (Slice (Text, First, Last));
-            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-            Item_Duration := Second_Number'Value (Slice (Text, First, Last));
-            Start_At := Last + 1;
-            -- point to character after last digit, possible delimiter
-            Dynamic := Dynamic and Item_Duration > 0;
-            if First_Time then
-               Time_Remaining := Item_Duration;
-            end if; -- First_Time
-            case Display_Item is
-               when DDMMYY | MMDDYY | YYMMDD =>
-                  Update_Date (Display_Item, Current_Time, Display_Brightness);
-               when Time_Zone =>
-                  Update_Time (Current_Time, Display_Brightness, Text, Start_At,
-                               First, Last);
-               when Dec =>
-                  Update_Dec (Display_Brightness, Text, Start_At, First, Last);
-               when Hex =>
-                  Update_Hex (Display_Brightness, Text, Start_At, First, Last);
-               when Arbitrary =>
-                  Update_Arbitrary (Display_Brightness, Text, Start_At, First,
-                                   Last);
-               when Blank =>
-                  Blank;
-            end case; -- Display_Item
-            First_Run := False;
+      -- Preemption check: if Critical message arrived and current is not Critical
+      if Scroll_Active then
+         if Has_Critical and then Current_Message.Priority /= Critical then
+            Start_Next_Message;
+         elsif Has_High and then Current_Message.Priority = Normal then
+            Pending_Switch := True;
+         end if; -- Has_Critical and not current Critical
+      end if; -- Scroll_Active
+
+      -- If no scroll active, check for queued messages
+      if not Scroll_Active then
+         if Any_Pending then
+            Start_Next_Message;
          else
-            Blank;
-         end if; -- Item_Cursor /= Item_Lists.No_Element
-      elsif (Step_Display and Exists (File_Name)) and then
-        File_Time /= Modification_Time (File_Name) then
-         -- Only test that the file has become available once per second, made
-         -- one shot by testing file date/time.
-         Initialise_Secondary_Display;
-      else
-         Blank;
-      end if; -- Run
+            -- Existing CSV logic for when no scroll is active
+            Run := (Run or Second (Current_Time) = 0) and not Is_Empty (Item_List);
+            -- Syncronise first run with 0 seconds, stop if the list is empty or
+            -- becomes empty.
+            if Run then
+               -- something to display
+               if Dynamic and Step_Display and not First_Run then
+                  -- item to be displayed may change
+                  if Time_Remaining > 1 then
+                     -- continue with displaying the same item
+                     Time_Remaining := Time_Remaining - 1;
+                     First_Time := False;
+                  else
+                     -- select the new item
+                     First_Time := True;
+                     Next (Item_Cursor);
+                     if Item_Cursor /= Item_Lists.No_Element then
+                        Item_Number := @ + 1;
+                     else
+                        if not Exists (File_Name) or else
+                          File_Time /= Modification_Time (File_Name) then
+                           -- The secondary file has been removed, replaced or
+                           -- modified.
+                           Initialise_Secondary_Display;
+                        end if; -- File_Time /= Modification_Time (File_Name)
+                        Item_Cursor := Item_Lists.First (Item_List);
+                        Item_Number := 1;
+                     end if; -- Item_Cursor /= Item_Lists.No_Element
+                  end if; --  Time_Remaining > 1
+               end if; --  Dynamic and Step_Display and not First_Run
+               if Item_Cursor /= Item_Lists.No_Element then
+                  -- parse current item
+                  Text := Item_List (Item_Cursor);
+                  Report_Current_Item (Head (To_String (Text),
+                                       UI_Strings'Length, ' '));
+                  Start_At := 1;
+                  Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+                  Start_At := Last + 1;
+                  Display_Item := Display_Items'Value (Slice (Text, First, Last));
+                  Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+                  Item_Duration := Second_Number'Value (Slice (Text, First, Last));
+                  Start_At := Last + 1;
+                  -- point to character after last digit, possible delimiter
+                  Dynamic := Dynamic and Item_Duration > 0;
+                  if First_Time then
+                     Time_Remaining := Item_Duration;
+                  end if; -- First_Time
+                  case Display_Item is
+                     when DDMMYY | MMDDYY | YYMMDD =>
+                        Update_Date (Display_Item, Current_Time, Display_Brightness);
+                     when Time_Zone =>
+                        Update_Time (Current_Time, Display_Brightness, Text, Start_At,
+                                     First, Last);
+                     when Dec =>
+                        Update_Dec (Display_Brightness, Text, Start_At, First, Last);
+                     when Hex =>
+                        Update_Hex (Display_Brightness, Text, Start_At, First, Last);
+                     when Arbitrary =>
+                        Update_Arbitrary (Display_Brightness, Text, Start_At, First,
+                                         Last);
+                     when Blank =>
+                        Blank;
+                  end case; -- Display_Item
+                  First_Run := False;
+               else
+                  Blank;
+               end if; -- Item_Cursor /= Item_Lists.No_Element
+            elsif (Step_Display and Exists (File_Name)) and then
+              File_Time /= Modification_Time (File_Name) then
+               -- Only test that the file has become available once per second, made
+               -- one shot by testing file date/time.
+               Initialise_Secondary_Display;
+            else
+               Blank;
+            end if; -- Run
+            return;
+         end if; -- Any_Pending
+      end if; -- not Scroll_Active
+
+      -- Scroll timing check
+      Now := Ada.Real_Time.Clock;
+      if Now < Next_Scroll_Time then
+         Render_Scroll_Frame (Display_Brightness);
+         return;
+      end if; -- Now < Next_Scroll_Time
+      Next_Scroll_Time := Now + Ada.Real_Time.Milliseconds (Effective_Delay_Ms);
+
+      -- Advance scroll: rotate buffer and get next character
+      Next_Char :=
+        (if Scroll_Char_Pos <= Length (Current_Message.Text)
+         then Element (Current_Message.Text, Scroll_Char_Pos)
+         else ' ');
+      Rotate_And_Insert (Char_To_Segments (Next_Char,
+                                           Current_Message.Force_Uppercase));
+      Scroll_Char_Pos := Scroll_Char_Pos + 1;
+
+      -- Check if one pass is complete
+      if Scroll_Char_Pos > Scroll_Seq_Length then
+         -- One replay done
+         if not Infinite_Repeat then
+            Plays_Remaining := Plays_Remaining - 1;
+         end if; -- not Infinite_Repeat
+         if Plays_Remaining = 0 then
+            -- Message exhausted
+            Start_Next_Message;
+         else
+            -- Another replay
+            Scroll_Char_Pos    := 1;
+            Current_Buffer     := (others => Blank_Segments);
+            if Pending_Switch and then
+              (Has_High or else Has_Critical) then
+               Start_Next_Message;
+            end if; -- Pending_Switch and queue not empty
+         end if; -- Plays_Remaining = 0
+      end if; -- Scroll_Char_Pos > Scroll_Seq_Length
+
+      Render_Scroll_Frame (Display_Brightness);
+
    exception
       when Event: Others =>
          Put_Error ("Error at line :" & Item_Number'Img &

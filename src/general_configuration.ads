@@ -2,8 +2,10 @@
 
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 13/05/2025
+-- Last Edit : 17/03/2026
 
+-- 20260317: MQTT broker config, Scroll_Delay_Ms and Force_Uppercase_Default
+-- added as optional configuration keys.
 -- 20250513: Smooth added as a simulated sweep mode.
 -- 20250510: Providing for simulated sweep hand modes to be set on startup.
 -- 20250410: Read_General_Configuration, Play_Command and Volume_Command added.
@@ -46,5 +48,31 @@ package General_Configuration is
    function Volume_Command return String;
    -- Returns the command line string used to invoke the volume control
    -- appliation.
+
+   function Scroll_Delay_Ms return Natural;
+   -- Milliseconds between each scroll step when displaying a text message.
+   -- Default 500 ms.
+
+   function Force_Uppercase_Default return Boolean;
+   -- When True (default) lowercase text is mapped to uppercase glyphs
+   -- before rendering, improving readability on 7-segment displays.
+
+   function MQTT_Broker_Host return String;
+   -- Hostname or IP of the MQTT broker. Empty string disables MQTT.
+
+   function MQTT_Broker_Port return Natural;
+   -- TCP port of the MQTT broker. Default 1883.
+
+   function MQTT_User_Name return String;
+   -- MQTT broker username. May be empty if the broker requires no auth.
+
+   function MQTT_Password return String;
+   -- MQTT broker password. May be empty if the broker requires no auth.
+
+   function MQTT_QoS return Natural;
+   -- MQTT Quality of Service level (0, 1 or 2). Default 0.
+
+   function MQTT_Keep_Alive return Positive;
+   -- MQTT keep-alive interval in seconds. Default 60.
 
 end General_Configuration;
