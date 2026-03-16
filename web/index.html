@@ -581,7 +581,8 @@ document.getElementById('pcb-details-btn').addEventListener('click', () => {
 });
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
-const WS_URL = 'ws://localhost:8765';
+const _wsHost = (location.hostname && location.hostname !== '') ? location.hostname : 'localhost';
+const WS_URL = `ws://${_wsHost}:8765`;
 let ws = null;
 let reconnectTimer = null;
 

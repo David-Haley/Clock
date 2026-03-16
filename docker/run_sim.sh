@@ -45,13 +45,16 @@ docker run --rm --platform linux/arm64 \
 
 echo ""
 echo "Simulation binary built at Clock/obj_sim/iot_clock"
-echo "Running clock + bridge (WebSocket on ws://localhost:8765)..."
+echo "Running clock + bridge..."
+echo "  Simulator WebSocket: ws://localhost:8765  (or open web/index.html as a file)"
+echo "  For a real clock:    ./web/run_bridge.sh <clock-host>"
 echo "  Stop with: docker stop ${CONTAINER_NAME}  (or Ctrl-C)"
 echo ""
 
 # ── Run Ada clock + bridge together ─────────────────────────────────────────
 # Bridge runs inside the container so it talks to Ada via 127.0.0.1 (no NAT).
-# Only TCP port 8765 (WebSocket) is exposed to the Mac.
+# Only TCP port 8765 (WebSocket) is forwarded to the Mac; the bridge binds
+# to all interfaces inside the container (Docker controls external access).
 docker run --rm \
     --name "$CONTAINER_NAME" \
     --platform linux/arm64 \
