@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../DJH"
+		},
+		{
+			"path": "../Pi_Common"
+		},
+		{
+			"path": "../Pi_Common_C"
+		}
+	],
+	"settings": {
+	},
+	"extensions": {
+		"recommendations": [
+			"adacore.ada"
+		]
+	}
+}

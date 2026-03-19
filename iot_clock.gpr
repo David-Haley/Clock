@@ -18,7 +18,7 @@ project Iot_Clock is
 --   end Binder;
 
    package Linker is
-      for Linker_Options use ("-g", "-v", "-lgpiod");
+      for Linker_Options use ("-g", "-lgpiod"); -- add -v here to debug linker issues
    end Linker;
 
 end Iot_Clock;
