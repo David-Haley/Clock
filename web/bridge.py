@@ -111,10 +111,26 @@ _STATUS_STRUCT  = struct.Struct(STATUS_FMT)
 _REQUEST_STRUCT = struct.Struct(REQUEST_FMT)
 
 # ── Optional HTTP static file server ──────────────────────────────────────────
+class _IndexOnlyHandler(SimpleHTTPRequestHandler):
+    """Allows only /index.html; redirects / to it; 404 everything else."""
+
+    def do_GET(self):
+        if self.path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/index.html")
+            self.end_headers()
+        elif self.path == "/index.html":
+            super().do_GET()
+        else:
+            self.send_error(404)
+
+    def log_message(self, format, *args):
+        logging.debug("HTTP %s", format % args)
+
 def _start_http_server(port: int) -> None:
-    """Serve the web/ directory over HTTP for LAN access."""
+    """Serve only index.html over HTTP for LAN access; redirect / to /index.html."""
     web_dir = str(Path(__file__).parent)
-    handler = lambda *a, **kw: SimpleHTTPRequestHandler(*a, directory=web_dir, **kw)
+    handler = lambda *a, **kw: _IndexOnlyHandler(*a, directory=web_dir, **kw)
     server = HTTPServer(("", port), handler)
     logging.info("HTTP file server: http://0.0.0.0:%d/index.html", port)
     server.serve_forever()
