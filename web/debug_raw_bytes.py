@@ -37,13 +37,13 @@ def hexdump(data, width=16):
         ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         print(f"  {i:4d}  {hex_part:<{width*3}}  {ascii_part}")
 
-# Field layout for annotation
+# Field layout for annotation (matches bridge.py STATUS_FMT: <8sB?8s6xq??2xiHH80s160?)
 FIELDS = [
     (0,   8,  "Clock_Version (String 1..8)"),
-    (8,   4,  "Request (enum uint32)"),
-    (12,  1,  "Diagnostic_Toggle (bool)"),
-    (13,  8,  "User_Interface_Version (String 1..8)"),
-    (21,  3,  "padding (3x)"),
+    (8,   1,  "Request (enum uint8)"),
+    (9,   1,  "Diagnostic_Toggle (bool)"),
+    (10,  8,  "User_Interface_Version (String 1..8)"),
+    (18,  6,  "padding (6x)"),
     (24,  8,  "Current_Time (int64 ns)"),
     (32,  1,  "Chime_Enabled (bool)"),
     (33,  1,  "Chime_Toggle (bool)"),
