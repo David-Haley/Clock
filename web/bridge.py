@@ -269,6 +269,7 @@ async def main() -> None:
     logging.info("Forwarding requests → %s:%d", CLOCK_HOST, REQUEST_PORT)
 
     if HTTP_PORT > 0:
+        logging.info("Starting HTTP file server on port=%d", HTTP_PORT)
         threading.Thread(target=_start_http_server, args=(HTTP_PORT,), daemon=True).start()
 
     async with serve(ws_handler, WS_HOST, WS_PORT):

@@ -46,7 +46,8 @@ docker run --rm --platform linux/arm64 \
 echo ""
 echo "Simulation binary built at Clock/obj_sim/iot_clock"
 echo "Running clock + bridge..."
-echo "  Simulator WebSocket: ws://localhost:8765  (or open web/index.html as a file)"
+echo "  Simulator WebSocket: ws://localhost:8765"
+echo "  Simulator HTTP UI:   http://localhost:8080/index.html"
 echo "  For a real clock:    ./web/run_bridge.sh <clock-host>"
 echo "  Stop with: docker stop ${CONTAINER_NAME}  (or Ctrl-C)"
 echo ""
@@ -61,5 +62,6 @@ docker run --rm \
     -v "$PARENT:/build" \
     -w /build/Clock \
     -p 8765:8765/tcp \
+    -p 8080:8080/tcp \
     iot-clock-build \
     /build/Clock/docker/entrypoint.sh
