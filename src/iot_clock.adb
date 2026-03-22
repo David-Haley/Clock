@@ -163,10 +163,10 @@ procedure IOT_Clock is
          null;
       when Smooth =>
          Sweep_LEDs (LED_Index + 1) :=
-           Greyscales (Real'Floor (Real (Display_Brightness) *
+           Greyscales (Real'Ceiling (Real (Display_Brightness) *
                        (Real (Sub_Second (Next_Time)) ** Gamma)));
          Sweep_LEDs (LED_Index - 1) :=
-           Greyscales (Real'Floor (Real (Display_Brightness) *
+           Greyscales (Real'Ceiling (Real (Display_Brightness) *
                        (Real (1.0 - Sub_Second (Next_Time)) ** Gamma)));
       when With_Tail =>
          Sweep_LEDs (LED_Index + 1) :=
