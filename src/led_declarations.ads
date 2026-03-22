@@ -1,8 +1,10 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 14/05/2025
+-- Last Edit : 22/03/2025
 
+--  20260322 : Improved smooth sweep, now use three LEDs. Some typo
+--  corrections in comments.
 -- 20250514 : Correction brightness setting error in IOT_Clock procedure.
 -- 20250513 : Smooth added as a simulated sweep mode.
 -- 20250512 : Provision for multiple simulated sweep hand modes.
