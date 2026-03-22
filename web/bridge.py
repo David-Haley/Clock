@@ -31,8 +31,8 @@ Status_Records (284 bytes):
   off 40   H     Ambient_Light          Unsigned_16
   off 42   H     AL_Test_Value          Unsigned_16
   off 44   80s   Current_Item           String(1..80)
-  off 124  160?  LED_Array              array(10 drivers × 16 channels) of Boolean
-Total: 284 bytes  (Status_Records'Size = 2272 bits, no trailing padding)
+  off 124  160H  LED_Array              array(10 drivers × 16 channels) of Greyscales (uint16)
+Total: 444 bytes  (Status_Records'Size = 3552 bits, no trailing padding)
 
 Layout verified empirically: ui_version decoded as '50510\\x00\\x00\\x00' with old
 'I' (4-byte) format confirmed Request is 1 byte (GNAT uses smallest integer type).
@@ -55,7 +55,7 @@ Ada.Calendar.Time on GNAT/Linux = nanoseconds since Jan 1 1970 (POSIX epoch).
 If the value looks unreasonable the bridge falls back to datetime.now().
 
 Layout verification (add to a test Ada program):
-  Put_Line(Status_Records'Size'Image);   -- expect 2304
+  Put_Line(Status_Records'Size'Image);   -- expect 3552
   Put_Line(Request_Records'Size'Image);  -- expect 128
 """
 
@@ -98,13 +98,13 @@ REQUEST_ENUM = {
 }
 
 # ── Struct formats ────────────────────────────────────────────────────────────
-STATUS_FMT   = "<8sB?8s6xq??2xiHH80s160?"
+STATUS_FMT   = "<8sB?8s6xq??2xiHH80s160H"
 REQUEST_FMT  = "<8sI?3x"
 
-STATUS_SIZE  = struct.calcsize(STATUS_FMT)   # must be 288
+STATUS_SIZE  = struct.calcsize(STATUS_FMT)   # must be 444
 REQUEST_SIZE = struct.calcsize(REQUEST_FMT)  # must be 16
 
-assert STATUS_SIZE  == 284, f"STATUS_FMT calcsize={STATUS_SIZE}, expected 284"
+assert STATUS_SIZE  == 444, f"STATUS_FMT calcsize={STATUS_SIZE}, expected 444"
 assert REQUEST_SIZE == 16,  f"REQUEST_FMT calcsize={REQUEST_SIZE}, expected 16"
 
 _STATUS_STRUCT  = struct.Struct(STATUS_FMT)
@@ -165,11 +165,11 @@ def decode_status(data: bytes) -> dict:
     # 8  ambient_light  (uint16)
     # 9  al_test_value  (uint16)
     # 10 current_item   (bytes)
-    # 11..170  160 LED booleans
+    # 11..170  160 LED greyscale values (uint16, 0-4095)
 
-    led_bools = unpacked[11:]   # 160 elements
+    led_vals = unpacked[11:]   # 160 elements
     leds = [
-        [bool(led_bools[r * 16 + c]) for c in range(16)]
+        [led_vals[r * 16 + c] for c in range(16)]
         for r in range(10)
     ]
 

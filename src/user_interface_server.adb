@@ -249,8 +249,7 @@ package body User_Interface_Server is
          -- Provides for reporting of LED state to the User Interface.
 
       begin -- Report_LED
-         UI_Data.Clock_Status.LED_Array (Driver, Channel) :=
-           Greyscale > Greyscales'First;
+         UI_Data.Clock_Status.LED_Array (Driver, Channel) := Greyscale;
       end Report_LED;
 
       procedure Report_Clock_Version (Clock_Version : Version_String) is

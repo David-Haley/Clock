@@ -9,6 +9,7 @@
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types. Stop_Clock removed.
 -- 20220126 : Diagnostic_Toggle addded to Request_Records and Status_Records.
+-- 20250323 : LED_Arrays changed from Boolean to Greyscales to carry PWM brightness.
 -- 20220125 : Status_Records no longer variant, Null_Request removed. User
 -- interface only stores lit state od LEDs.
 -- 20220122 : Volume_Test added;
@@ -42,8 +43,8 @@ package Shared_User_Interface is
    end record; -- Request_Records
 
    subtype UI_Strings is String (1 .. 80);
-   type LED_Arrays is array (LED_Drivers, LED_Channels) of Boolean;
-   -- Record lit state only
+   type LED_Arrays is array (LED_Drivers, LED_Channels) of Greyscales;
+   -- Record greyscale brightness (0 = off)
 
    type Status_Records is record
       Clock_Version : Version_String := "YYYYMMDD";
@@ -56,7 +57,7 @@ package Shared_User_Interface is
       Chime_Volume : Chime_Volumes := Chime_Volumes'First;
       Ambient_Light, AL_Test_Value : Greyscales := Greyscales'First;
       Current_Item : UI_Strings := (others => ' ');
-      LED_Array : LED_Arrays := (others => (others => False));
+      LED_Array : LED_Arrays := (others => (others => Greyscales'First));
    end record; -- Status_Records
    -- All but Current_Time initialised to ensure legal values for Update_Screen
    -- in User_Interface_Client
