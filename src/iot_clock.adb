@@ -1,8 +1,10 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 14/05/2025
+-- Last Edit : 22/03/2025
 
+--  20260322 : Improved smooth sweep, now use three LEDs. Some typo
+--  corrections in comments.
 -- 20250514 : Correction of Display_Brightness setting in IOT_Clock update loop.
 -- In an attempt to remove what appeared to be a flaw, whereby two calls were
 -- made to Get_Ambient_Light, potentially returning different values, one in an
@@ -11,7 +13,7 @@
 -- was an intervening call to Write_LEDs. There are no asynchronous calls to
 -- Write_LEDs so this is not possible. The "fix" introduced a more serious issue
 -- if Get_Ambient_Light returned 0 then an exception was raised when this was
--- assigned to Display_Brightness which has a minimum valie of 1!
+-- assigned to Display_Brightness which has a minimum value of 1!
 -- 20250513 : Smooth added as a simulated sweep mode.
 -- 20250512 : Provision for multiple simulated sweep hand modes.
 -- 20250411 : Correction of Spelling of Arbitrary, reporting of all
@@ -19,17 +21,17 @@
 -- read from general configuration file, Time_Zone now supports multiple changes
 -- in UTC offset.
 -- 20250407 : General_Configuration added, default volume now configurable.
--- Start and end dates for daylight saving added to secobdary display.
+-- Start and end dates for daylight saving added to secondary display.
 -- 20220920 : User initiated shutdown moved to main loop.
 -- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
 -- 20220125 : Reporting to User Interface updated.
 -- 20220123 : Units of hours decimal point indicates chiming disabled. Ambient
--- light initialisation chamgedd to AL_Driver, AL_Channel.
+-- light initialisation changed to AL_Driver, AL_Channel.
 -- 20220119 : UI chiming state read from UI
 -- 20220118 : Decoupling UI server from main loop;
--- 20220115 : Error and event handiing centralised. Primary and Secondary
+-- 20220115 : Error and event handling centralised. Primary and Secondary
 -- display brightness updated when sweep updated.
 -- 20191111 : The time step for which all updates are run is reduced to 3.0 s.
 -- Thus if any correction in time greater than 3.0 s occurs the secondary
@@ -163,7 +165,9 @@ procedure IOT_Clock is
          Sweep_LEDs (LED_Index + 1) :=
            Greyscales (Real'Floor (Real (Display_Brightness) *
                        (Real (Sub_Second (Next_Time)) ** Gamma)));
-         Sweep_LEDs (LED_Index) := @ - Sweep_LEDs (LED_Index + 1);
+         Sweep_LEDs (LED_Index - 1) :=
+           Greyscales (Real'Floor (Real (Display_Brightness) *
+                       (Real (1.0 - Sub_Second (Next_Time)) ** Gamma)));
       when With_Tail =>
          Sweep_LEDs (LED_Index + 1) :=
            Greyscales (Real'Floor (Real (Display_Brightness) *
