@@ -48,7 +48,8 @@ Request_Records (16 bytes):
   off  0   8s    User_Interface_Version
   off  8   I     Request                Requests enum (uint32)
   off 12   ?     Diagnostic_Toggle      Boolean
-  off 13   3x    padding
+  off 13   1x    padding
+  off 14   H     Ambient_Override       Greyscales (uint16); 0 = use sensor
 Total: 16 bytes  (Request_Records'Size = 128 bits)
 
 Ada.Calendar.Time on GNAT/Linux = nanoseconds since Jan 1 1970 (POSIX epoch).
@@ -99,7 +100,7 @@ REQUEST_ENUM = {
 
 # ── Struct formats ────────────────────────────────────────────────────────────
 STATUS_FMT   = "<8sB?8s6xq??2xiHH80s160H"
-REQUEST_FMT  = "<8sI?3x"
+REQUEST_FMT  = "<8sI?xH"
 
 STATUS_SIZE  = struct.calcsize(STATUS_FMT)   # must be 444
 REQUEST_SIZE = struct.calcsize(REQUEST_FMT)  # must be 16
@@ -187,23 +188,30 @@ def decode_status(data: bytes) -> dict:
     }
 
 # ── Request encode ────────────────────────────────────────────────────────────
-def encode_request(request_name: str, diag_toggle: bool = False) -> bytes:
+def encode_request(request_name: str, diag_toggle: bool = False,
+                   ambient_override: int = 0) -> bytes:
     enum_val = REQUEST_ENUM.get(request_name, REQUEST_ENUM["Get_Status"])
-    return _REQUEST_STRUCT.pack(INTERFACE_VERSION, enum_val, diag_toggle)
+    return _REQUEST_STRUCT.pack(INTERFACE_VERSION, enum_val, diag_toggle,
+                                ambient_override)
 
 # ── WebSocket server ──────────────────────────────────────────────────────────
 connected_clients: set = set()
 _udp_tx: socket.socket | None = None
+_ambient_override: int = 0   # 0 = use sensor; >0 = simulator override
 
 
 async def ws_handler(websocket):
+    global _ambient_override
     connected_clients.add(websocket)
     logging.info("Browser connected  (total: %d)", len(connected_clients))
     try:
         async for raw in websocket:
             try:
                 cmd = json.loads(raw)
-                pkt = encode_request(cmd.get("request", "Get_Status"))
+                if "ambient_override" in cmd:
+                    _ambient_override = int(cmd["ambient_override"]) & 0xFFFF
+                pkt = encode_request(cmd.get("request", "Get_Status"),
+                                     ambient_override=_ambient_override)
                 _udp_tx.sendto(pkt, (CLOCK_HOST, REQUEST_PORT))
             except Exception as exc:
                 logging.warning("Bad browser command: %s", exc)
@@ -242,10 +250,10 @@ async def udp_receive_loop(udp: socket.socket) -> None:
 
 
 async def poll_clock(udp: socket.socket) -> None:
-    """Send Get_Status once per second to keep the server responding."""
-    pkt = encode_request("Get_Status")
+    """Send Get_Status at 8 Hz to keep the server responding."""
     while True:
         try:
+            pkt = encode_request("Get_Status", ambient_override=_ambient_override)
             udp.sendto(pkt, (CLOCK_HOST, REQUEST_PORT))
         except Exception:
             pass

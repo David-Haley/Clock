@@ -25,6 +25,10 @@ package User_Interface_Server is
    function Get_Chime_Toggle return Boolean;
    -- Returns true if chiming is turned on in UI, defaults to true on startup.
 
+   function Get_Ambient_Override return Greyscales;
+   -- Returns the ambient light override value set via the UI.
+   -- 0 = no override (use sensor); >0 = override with this greyscale value.
+
    procedure Report_Chiming (Chiming_Enabled : in Boolean;
                              Chime_Volume : in Chime_Volumes);
    -- Provides for reporting of current chime state to user interface.

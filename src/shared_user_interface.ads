@@ -10,6 +10,7 @@
 -- TLC5940_Driver_Types. Stop_Clock removed.
 -- 20220126 : Diagnostic_Toggle addded to Request_Records and Status_Records.
 -- 20250323 : LED_Arrays changed from Boolean to Greyscales to carry PWM brightness.
+-- 20250323 : Ambient_Override added to Request_Records for simulator ambient injection.
 -- 20220125 : Status_Records no longer variant, Null_Request removed. User
 -- interface only stores lit state od LEDs.
 -- 20220122 : Volume_Test added;
@@ -40,6 +41,8 @@ package Shared_User_Interface is
       User_Interface_Version : Version_String := Interface_Version;
       Request : Requests;
       Diagnostic_Toggle : Boolean := False;
+      Ambient_Override : Greyscales := Greyscales'First;
+      -- Simulator: 0 = use sensor; >0 = override ambient light with this value.
    end record; -- Request_Records
 
    subtype UI_Strings is String (1 .. 80);

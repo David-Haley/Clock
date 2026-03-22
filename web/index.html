@@ -158,6 +158,18 @@
     flex-direction: column;
     gap: 6px;
   }
+  /* ── Ambient override slider ─────────────────────────────────── */
+  #ambient-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  #ambient-row label { color: var(--dim); white-space: nowrap; flex-shrink: 0; }
+  #ambient-slider { flex: 1; accent-color: var(--led-color); }
+  #ambient-val { color: var(--text); min-width: 48px; text-align: right; font-size: 0.78rem; white-space: nowrap; }
   .ctrl-btn {
     display: flex;
     align-items: center;
@@ -323,6 +335,11 @@
       <button class="ctrl-btn" data-cmd="Volume_Down"><kbd>−</kbd> Volume down</button>
       <button class="ctrl-btn" data-cmd="Volume_Test"><kbd>T</kbd> Volume test</button>
       <button class="ctrl-btn" data-cmd="Cycle_Sweep"><kbd>S</kbd> Cycle sweep</button>
+      <div id="ambient-row">
+        <label for="ambient-slider">Ambient</label>
+        <input type="range" id="ambient-slider" min="0" max="4095" value="0" step="1">
+        <span id="ambient-val">auto</span>
+      </div>
     </div>
   </div>
 </div><!-- /main -->
@@ -667,9 +684,11 @@ function connect() {
 connect();
 
 // ── Controls ───────────────────────────────────────────────────────────────
+let _ambientOverride = 0;
+
 function sendCmd(cmd) {
   if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({request: cmd}));
+    ws.send(JSON.stringify({request: cmd, ambient_override: _ambientOverride}));
 }
 
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
@@ -689,6 +708,18 @@ document.addEventListener('keydown', evt => {
   if (evt.ctrlKey || evt.altKey || evt.metaKey) return;
   const cmd = KEY_MAP[evt.key.toLowerCase()];
   if (cmd) sendCmd(cmd);
+});
+
+// ── Ambient light override slider ──────────────────────────────────────────
+const ambientSlider = document.getElementById('ambient-slider');
+const ambientVal    = document.getElementById('ambient-val');
+
+ambientSlider.addEventListener('input', () => {
+  _ambientOverride = parseInt(ambientSlider.value, 10);
+  ambientVal.textContent = _ambientOverride === 0 ? 'auto' : _ambientOverride;
+  // Send immediately so the clock responds without waiting for next poll
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({request: 'Get_Status', ambient_override: _ambientOverride}));
 });
 </script>
 </body>
