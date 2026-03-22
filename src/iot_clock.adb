@@ -240,12 +240,20 @@ begin -- IOT_Clock
       Update_interval := 1.0 / Duration (Update_Rate (S_Mode));
       Update_Count := 1;
       loop -- Update loop
-         Ambient_Light := Get_Ambient_Light;
+         declare
+            Override : constant Greyscales := Get_Ambient_Override;
+         begin
+            if Override > Greyscales'First then
+               Ambient_Light := Override;
+            else
+               Ambient_Light := Get_Ambient_Light;
+            end if; -- Override > Greyscales'First
+         end;
          if Ambient_Light > Minimum_Brightness then
             Display_Brightness := Ambient_Light;
          else
             Display_Brightness := Minimum_Brightness;
-         end if; -- Get_Ambient_Light > Minimum_Brightness
+         end if; -- Ambient_Light > Minimum_Brightness
          Update_Sweep (Next_Time, Display_Brightness, S_Mode, Gamma);
          Update_Primary (Next_Time, Display_Brightness);
          if Update_Count = 1 then

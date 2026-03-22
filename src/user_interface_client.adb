@@ -364,11 +364,11 @@ package body User_Interface_Client is
             for D in LED_Drivers loop
                for C in LED_Channels loop
                   if Full_Update or else
-                    (Status.LED_Array (D, C) xor
+                    (Status.LED_Array (D, C) /=
                          Previous_Status.LED_Array (D, C)) then
                      Goto_XY (LED_Data (D, C).X + Origin_X,
                               LED_Data (D, C).Y + Origin_Y);
-                     if Status.LED_Array (D, C) then
+                     if Status.LED_Array (D, C) > Greyscales'First then
                         Put (LED_Data (D, C).Active);
                      else
                         Put (Passive);
