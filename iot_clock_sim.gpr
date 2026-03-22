@@ -7,6 +7,7 @@
 
 with "../Pi_Common/lib_mosquitto.gpr";
 
+
 project Iot_Clock_Sim is
 
    -- Pi_Common_C/src is included for Ada .ads binding files (gpio_driver_h,

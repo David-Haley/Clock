@@ -8,6 +8,12 @@ Forwards browser JSON commands back as Request_Records binary to port 50003.
 
 Usage:
     uv run bridge.py [clock-host]   # default: 127.0.0.1
+    BRIDGE_HTTP_PORT=8000 uv run --with websockets web/bridge.py [clock-host]
+                                        # also serves web/ on HTTP port 8000
+
+Environment variables:
+    BRIDGE_WS_HOST   WebSocket bind address (default: 0.0.0.0)
+    BRIDGE_HTTP_PORT HTTP port for serving web/ files; 0 = disabled (default: 0)
 
 ─── Ada wire layout (aarch64 little-endian, GNAT defaults) ──────────────────
 
@@ -60,7 +66,10 @@ import os
 import socket
 import struct
 import sys
+import threading
 from datetime import datetime, timezone
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 import websockets
 from websockets.server import serve
@@ -69,8 +78,9 @@ from websockets.server import serve
 CLOCK_HOST    = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 REQUEST_PORT  = 50003
 RESPONSE_PORT = 50004
-WS_HOST       = os.environ.get("BRIDGE_WS_HOST", "localhost")
+WS_HOST       = os.environ.get("BRIDGE_WS_HOST", "0.0.0.0")
 WS_PORT       = 8765
+HTTP_PORT     = int(os.environ.get("BRIDGE_HTTP_PORT", "0"))
 
 INTERFACE_VERSION = b"20250510"
 
@@ -99,6 +109,32 @@ assert REQUEST_SIZE == 16,  f"REQUEST_FMT calcsize={REQUEST_SIZE}, expected 16"
 
 _STATUS_STRUCT  = struct.Struct(STATUS_FMT)
 _REQUEST_STRUCT = struct.Struct(REQUEST_FMT)
+
+# ── Optional HTTP static file server ──────────────────────────────────────────
+class _IndexOnlyHandler(SimpleHTTPRequestHandler):
+    """Allows only /index.html; redirects / to it; 404 everything else."""
+
+    def do_GET(self):
+        if self.path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/index.html")
+            self.end_headers()
+        elif self.path == "/index.html":
+            super().do_GET()
+        else:
+            self.send_error(404)
+
+    def log_message(self, format, *args):
+        logging.debug("HTTP %s", format % args)
+
+def _start_http_server(port: int) -> None:
+    """Serve only index.html over HTTP for LAN access; redirect / to /index.html."""
+    web_dir = str(Path(__file__).parent)
+    handler = lambda *a, **kw: _IndexOnlyHandler(*a, directory=web_dir, **kw)
+    server = HTTPServer(("", port), handler)
+    logging.info("HTTP file server: http://0.0.0.0:%d/index.html", port)
+    server.serve_forever()
+
 
 # ── Ada Calendar.Time decoding ────────────────────────────────────────────────
 def decode_ada_time(ns: int) -> str:
@@ -232,6 +268,11 @@ async def main() -> None:
 
     logging.info("WebSocket server: ws://%s:%d", WS_HOST, WS_PORT)
     logging.info("Forwarding requests → %s:%d", CLOCK_HOST, REQUEST_PORT)
+
+    if HTTP_PORT > 0:
+        logging.info("Starting HTTP file server on port=%d", HTTP_PORT)
+        threading.Thread(target=_start_http_server, args=(HTTP_PORT,), daemon=True).start()
+
 
     async with serve(ws_handler, WS_HOST, WS_PORT):
         await asyncio.gather(udp_receive_loop(_udp_tx), poll_clock(_udp_tx))

@@ -154,15 +154,43 @@
     padding: 12px 16px;
     font-size: 0.78rem;
     color: var(--dim);
-    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
-  #controls kbd {
+  .ctrl-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--dim);
+    font-family: inherit;
+    font-size: inherit;
+    padding: 6px 8px;
+    min-height: 44px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .ctrl-btn:hover { border-color: #444; background: #1e1e1e; color: var(--text); }
+  .ctrl-btn:active { background: #2a2a2a; }
+  .ctrl-btn kbd {
     color: var(--text);
     background: #2a2a2a;
     border: 1px solid #444;
     border-radius: 3px;
     padding: 1px 5px;
     font-size: 0.85em;
+    min-width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .ctrl-btn:hover kbd { background: #383838; border-color: #666; }
+  @media (max-width: 600px) {
+    .ctrl-btn { font-size: 0.9rem; min-height: 52px; }
   }
 </style>
 </head>
@@ -289,11 +317,11 @@
 
     <!-- Controls -->
     <div id="controls">
-      <kbd>C</kbd> Toggle chime<br>
-      <kbd>+</kbd> Volume up<br>
-      <kbd>-</kbd> Volume down<br>
-      <kbd>T</kbd> Volume test<br>
-      <kbd>S</kbd> Cycle sweep mode
+      <button class="ctrl-btn" data-cmd="Toggle_Chime"><kbd>C</kbd> Toggle chime</button>
+      <button class="ctrl-btn" data-cmd="Volume_Up"><kbd>+</kbd> Volume up</button>
+      <button class="ctrl-btn" data-cmd="Volume_Down"><kbd>−</kbd> Volume down</button>
+      <button class="ctrl-btn" data-cmd="Volume_Test"><kbd>T</kbd> Volume test</button>
+      <button class="ctrl-btn" data-cmd="Cycle_Sweep"><kbd>S</kbd> Cycle sweep</button>
     </div>
   </div>
 </div><!-- /main -->
@@ -581,7 +609,8 @@ document.getElementById('pcb-details-btn').addEventListener('click', () => {
 });
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
-const WS_URL = 'ws://localhost:8765';
+const _wsHost = (location.hostname && location.hostname !== '') ? location.hostname : 'localhost';
+const WS_URL = `ws://${_wsHost}:8765`;
 let ws = null;
 let reconnectTimer = null;
 
@@ -618,6 +647,16 @@ function connect() {
 
 connect();
 
+// ── Controls ───────────────────────────────────────────────────────────────
+function sendCmd(cmd) {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({request: cmd}));
+}
+
+document.querySelectorAll('.ctrl-btn').forEach(btn => {
+  btn.addEventListener('click', () => sendCmd(btn.dataset.cmd));
+});
+
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 const KEY_MAP = {
   'c': 'Toggle_Chime',
@@ -631,9 +670,7 @@ const KEY_MAP = {
 document.addEventListener('keydown', evt => {
   if (evt.ctrlKey || evt.altKey || evt.metaKey) return;
   const cmd = KEY_MAP[evt.key.toLowerCase()];
-  if (cmd && ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({request: cmd}));
-  }
+  if (cmd) sendCmd(cmd);
 });
 </script>
 </body>
