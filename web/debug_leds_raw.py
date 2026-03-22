@@ -45,10 +45,12 @@ def print_status(data: dict, n: int = 0) -> None:
     print(f"  lit LEDs     : {total_lit} / {total_ch}")
     for r, row in enumerate(leds):
         name = DRIVER_NAMES[r] if r < len(DRIVER_NAMES) else f"row{r}"
-        bits = [int(v) for v in row]
-        lit = [i for i, v in enumerate(bits) if v]
-        status = f"ch {lit}" if lit else "(all off)"
-        print(f"    [{r}] {name:16s}: {status}")
+        active = [(i, v) for i, v in enumerate(row) if v]
+        if active:
+            ch_str = "  ".join(f"ch{i}={v}" for i, v in active)
+            print(f"    [{r}] {name:16s}: {ch_str}")
+        else:
+            print(f"    [{r}] {name:16s}: (all off)")
 
 
 async def run() -> None:

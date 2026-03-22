@@ -23,11 +23,13 @@ for arg in sys.argv[1:]:
     elif not arg.startswith("--"):
         HOST = arg
 
-REQUEST_FMT = "<8sI?3x"
-STATUS_SIZE_EXPECTED = 284
+# Request: 1-byte enum (same repr as in Status_Records), 1-byte bool,
+# 2-byte Ambient_Override, 4 bytes padding = 16 bytes total.
+REQUEST_FMT = "<8sB?H4x"
+STATUS_SIZE_EXPECTED = 444
 
 def send_get_status(sock):
-    pkt = struct.pack(REQUEST_FMT, b"20250510", 5, False)   # Get_Status = 5
+    pkt = struct.pack(REQUEST_FMT, b"20250510", 5, False, 0)   # Get_Status = 5
     sock.sendto(pkt, (HOST, 50003))
 
 def hexdump(data, width=16):
@@ -37,31 +39,30 @@ def hexdump(data, width=16):
         ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         print(f"  {i:4d}  {hex_part:<{width*3}}  {ascii_part}")
 
-# Field layout for annotation (matches bridge.py STATUS_FMT: <8sB?8s6xq??2xiHH80s160?)
+# Field layout for annotation (matches bridge.py STATUS_FMT: <8sB?8s6xq??2xiHH80s160H)
 FIELDS = [
-    (0,   8,  "Clock_Version (String 1..8)"),
-    (8,   1,  "Request (enum uint8)"),
-    (9,   1,  "Diagnostic_Toggle (bool)"),
-    (10,  8,  "User_Interface_Version (String 1..8)"),
-    (18,  6,  "padding (6x)"),
-    (24,  8,  "Current_Time (int64 ns)"),
-    (32,  1,  "Chime_Enabled (bool)"),
-    (33,  1,  "Chime_Toggle (bool)"),
-    (34,  2,  "padding (2x)"),
-    (36,  4,  "Chime_Volume (int32)"),
-    (40,  2,  "Ambient_Light (uint16)"),
-    (42,  2,  "AL_Test_Value (uint16)"),
-    (44, 80,  "Current_Item (String 1..80)"),
-    (124,160, "LED_Array (160 bool)"),
+    (0,   8,   "Clock_Version (String 1..8)"),
+    (8,   1,   "Request (enum uint8)"),
+    (9,   1,   "Diagnostic_Toggle (bool)"),
+    (10,  8,   "User_Interface_Version (String 1..8)"),
+    (18,  6,   "padding (6x)"),
+    (24,  8,   "Current_Time (int64 ns)"),
+    (32,  1,   "Chime_Enabled (bool)"),
+    (33,  1,   "Chime_Toggle (bool)"),
+    (34,  2,   "padding (2x)"),
+    (36,  4,   "Chime_Volume (int32)"),
+    (40,  2,   "Ambient_Light (uint16)"),
+    (42,  2,   "AL_Test_Value (uint16)"),
+    (44,  80,  "Current_Item (String 1..80)"),
+    (124, 320, "LED_Array (160 × uint16 greyscale, 0-4095)"),
 ]
 
 def annotate(data):
     print(f"\nAnnotated fields ({len(data)} bytes):")
     for off, size, name in FIELDS:
         chunk = data[off:off+size]
-        hex_s = " ".join(f"{b:02x}" for b in chunk[:min(size,20)])
+        hex_s = " ".join(f"{b:02x}" for b in chunk[:min(size, 20)])
         extra = "..." if size > 20 else ""
-        # Try to decode as useful type
         note = ""
         if "String" in name:
             note = repr(chunk.decode("ascii", errors="replace"))
@@ -75,8 +76,10 @@ def annotate(data):
         elif size == 1:
             note = str(chunk[0])
         elif "LED" in name:
-            lit = sum(1 for b in chunk if b)
-            note = f"{lit}/160 lit"
+            vals = struct.unpack_from(f"<{size//2}H", chunk)
+            lit = sum(1 for v in vals if v)
+            max_v = max(vals) if vals else 0
+            note = f"{lit}/160 lit, max greyscale={max_v}"
         print(f"  off {off:3d} [{size:3d}B]  {hex_s}{extra}  {name}  {note}")
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -88,6 +91,8 @@ for i in range(COUNT):
     try:
         data, addr = sock.recvfrom(4096)
         print(f"\n=== Response {i+1} from {addr} ({len(data)} bytes) ===")
+        if len(data) != STATUS_SIZE_EXPECTED:
+            print(f"  WARNING: expected {STATUS_SIZE_EXPECTED} bytes, got {len(data)}")
         hexdump(data)
         annotate(data)
     except socket.timeout:

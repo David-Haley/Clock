@@ -46,10 +46,10 @@ Each row: channels 0-7 = tens digit (segs a,b,c,d,e,f,g,DP)
 
 Request_Records (16 bytes):
   off  0   8s    User_Interface_Version
-  off  8   I     Request                Requests enum (uint32)
-  off 12   ?     Diagnostic_Toggle      Boolean
-  off 13   1x    padding
-  off 14   H     Ambient_Override       Greyscales (uint16); 0 = use sensor
+  off  8   B     Request                Requests enum (uint8 — same 1-byte repr as in Status_Records)
+  off  9   ?     Diagnostic_Toggle      Boolean
+  off 10   H     Ambient_Override       Greyscales (uint16); 0 = use sensor
+  off 12   4x    padding
 Total: 16 bytes  (Request_Records'Size = 128 bits)
 
 Ada.Calendar.Time on GNAT/Linux = nanoseconds since Jan 1 1970 (POSIX epoch).
@@ -100,7 +100,7 @@ REQUEST_ENUM = {
 
 # ── Struct formats ────────────────────────────────────────────────────────────
 STATUS_FMT   = "<8sB?8s6xq??2xiHH80s160H"
-REQUEST_FMT  = "<8sI?xH"
+REQUEST_FMT  = "<8sB?H4x"
 
 STATUS_SIZE  = struct.calcsize(STATUS_FMT)   # must be 444
 REQUEST_SIZE = struct.calcsize(REQUEST_FMT)  # must be 16
