@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 12/05/2025
+-- Last Edit : 11/04/2025
 
+--  20260411 : Error management in Update_Time improved. Static_Text added.
 -- 20250512 : Changes to ensure that every time Update_Secondary is called the
 -- display buffer is rewritten. Correction of a possible flaw, removal of the
 -- Secondary.csv file could cause an exception when the end of the list is
@@ -47,12 +48,14 @@
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Directories; use Ada.Directories;
+with Ada.Characters.Handling; use Ada.Characters.Handling;
 with Ada.Calendar.Time_Zones; use Ada.Calendar.Time_Zones;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with Ada.Containers.Doubly_Linked_Lists;
 with Ada.Strings; use Ada.Strings;
 with Ada.Strings.Fixed; use Ada.Strings.Fixed;
 with Ada.Strings.Maps; use Ada.Strings.Maps;
+with Ada.Strings.Maps.Constants; use Ada.Strings.Maps.Constants;
 with Ada.Strings.Equal_Case_Insensitive;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
@@ -64,14 +67,24 @@ with User_Interface_Server; use User_Interface_Server;
 
 package body Secondary_Display is
 
+   subtype Decimal_Digit is Natural range 0 .. 9;
+
    Delimiter : constant Character := ',';
    Delimiter_Set : constant Character_Set := To_Set (Delimiter);
+   Signed_Number_Set : constant Character_Set :=
+     Decimal_Digit_Set or To_Set ('-');
 
-   type Display_Items is (DDMMYY, MMDDYY, YYMMDD, Time_Zone, Dec, Hex,
-                          Arbitrary, Blank);
+   type Display_Items is (DDMMYY, MMDDYY, YYMMDD, Time_Zone, Static_Text, 
+                          Scrolling_Text, Arbitrary, Blank);
    subtype Date_Formats is Display_Items range DDMMYY .. YYMMDD;
 
+   subtype Duration_Counters is Natural range 0 .. 3600;
+   subtype Item_Durations is Duration_Counters range 1 .. Duration_Counters'Last;
+
    use Clock_LEDs;
+
+   function To_Character (Number : in Decimal_Digit) return Character is
+      (Character'Val (Character'Pos ('0') + Number));
 
    procedure Blank is
 
@@ -107,27 +120,44 @@ package body Secondary_Display is
       Two_Digit_Year := Year mod 100; -- only tens and units of years
       case Format is
          when DDMMYY =>
-            Set_Digit (Tens_Days, Day / 10, Display_Brightness);
-            Set_Digit (Units_Days, Day mod 10, Display_Brightness, True);
-            Set_Digit (Tens_Months, Month / 10, Display_Brightness);
-            Set_Digit (Units_Months, Month mod 10, Display_Brightness, True);
-            Set_Digit (Tens_Years, Two_Digit_Year / 10, Display_Brightness);
-            Set_Digit (Units_Years, Two_Digit_Year mod 10, Display_Brightness);
+            Set_Character (Tens_Days, To_Character (Day / 10),
+                       Display_Brightness);
+            Set_Character (Units_Days, To_Character (Day mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Months, To_Character (Month / 10),
+                       Display_Brightness);
+            Set_Character (Units_Months, To_Character (Month mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Years, To_Character (Two_Digit_Year / 10),
+                       Display_Brightness);
+            Set_Character (Units_Years, To_Character (Two_Digit_Year mod 10),
+                       Display_Brightness);
          when MMDDYY =>
-            Set_Digit (Tens_Days, Month / 10, Display_Brightness);
-            Set_Digit (Units_Days, Month mod 10, Display_Brightness, True);
-            Set_Digit (Tens_Months, Day / 10, Display_Brightness);
-            Set_Digit (Units_Months, Day mod 10, Display_Brightness, True);
-            Set_Digit (Tens_Years, Two_Digit_Year / 10, Display_Brightness);
-            Set_Digit (Units_Years, Two_Digit_Year mod 10, Display_Brightness);
+            Set_Character (Tens_Months, To_Character (Day / 10),
+                       Display_Brightness);
+            Set_Character (Units_Months, To_Character (Day mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Days, To_Character (Month / 10),
+                       Display_Brightness);
+            Set_Character (Units_Days, To_Character (Month mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Years, To_Character (Two_Digit_Year / 10),
+                       Display_Brightness);
+            Set_Character (Units_Years, To_Character (Two_Digit_Year mod 10),
+                       Display_Brightness);
          when YYMMDD =>
-            Set_Digit (Tens_Days, Two_Digit_Year / 10, Display_Brightness);
-            Set_Digit (Units_Days, Two_Digit_Year mod 10, Display_Brightness,
-                       True);
-            Set_Digit (Tens_Months, Month / 10, Display_Brightness);
-            Set_Digit (Units_Months, Month mod 10, Display_Brightness, True);
-            Set_Digit (Tens_Years, Day / 10, Display_Brightness);
-            Set_Digit (Units_Years, Day mod 10, Display_Brightness);
+            Set_Character (Tens_Years, To_Character (Day / 10),
+                       Display_Brightness);
+            Set_Character (Units_Years, To_Character (Day mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Months, To_Character (Month / 10),
+                       Display_Brightness);
+            Set_Character (Units_Months, To_Character (Month mod 10),
+                       Display_Brightness, True);
+            Set_Character (Tens_Days, To_Character (Two_Digit_Year / 10),
+                       Display_Brightness);
+            Set_Character (Units_Days, To_Character (Two_Digit_Year mod 10),
+                       Display_Brightness);
       end case; -- Format
    exception
       when Event: Others =>
@@ -141,7 +171,7 @@ package body Secondary_Display is
                           Start_At, First : in out Positive;
                           Last : in out Natural) is
 
-      -- Text Start_At, First and last are package wide variables.
+      --  Text Start_At, First and Last are package wide variables.
 
       Year : Year_Number;
       Month : Month_Number;
@@ -161,12 +191,18 @@ package body Secondary_Display is
       -- Allows for mutiple start dates and associated offsets to be read
       loop -- until end of line
          Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+         if Last = 0 then
+            raise  Secondary_Configuration with "Missing date and time";
+         end if; -- Last = 0 then
          Start_Time := Value (Trim (Slice (Text, First, Last), Left), 0);
-         -- Trim required to remove leading spaces, if any which are not
+         -- Trim required to remove leading spaces, if any, which are not
          -- accepted by Value!
          Start_At := Last + 1;
-         Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+         Find_Token (Text, Signed_Number_Set, Start_At, Inside, First, Last);
          Offset := Time_Offset'Value (Slice (Text, First, Last));
+         if Last = 0 then
+            raise  Secondary_Configuration with "Missing offset";
+         end if; -- Last = 0 then
          Start_At := Last + 1;
          -- Only Defined if a valid Start_Time and Offset have been read where
          -- Current_Time (UTC) is after Start_Time and later that any previously
@@ -183,95 +219,123 @@ package body Secondary_Display is
          Split (Current_Time, Year, Month, Day,
                 Hour, Minute, Second, Sub_Second,
                 Leap_Second, Offset_from_UTC);
-         Set_Digit (Tens_Days, Hour / 10, Display_Brightness);
-         Set_Digit (Units_Days, Hour mod 10, Display_Brightness);
-         Set_Digit (Tens_Months, Minute / 10, Display_Brightness);
-         Set_Digit (Units_Months, Minute mod 10, Display_Brightness);
-         Set_Digit (Tens_Years, Second / 10, Display_Brightness);
-         Set_Digit (Units_Years, Second mod 10, Display_Brightness);
+         Set_Character (Tens_Days, To_Character (Hour / 10),
+                    Display_Brightness);
+         Set_Character (Units_Days, To_Character (Hour mod 10),
+                    Display_Brightness);
+         Set_Character (Tens_Months, To_Character (Minute / 10),
+                    Display_Brightness);
+         Set_Character (Units_Months, To_Character (Minute mod 10),
+                    Display_Brightness);
+         Set_Character (Tens_Years, To_Character (Second / 10),
+                    Display_Brightness);
+         Set_Character (Units_Years, To_Character (Second mod 10),
+                    Display_Brightness);
       else
          Blank;
       end if; -- Defined
    exception
       when Event: Others =>
+         Blank; 
          Put_Error ("Error in Time item", Event);
          raise;
    end Update_Time;
 
-   procedure Update_Dec (Display_Brightness : in Greyscales;
-                         Text : in Unbounded_String;
-                         Start_At, First : in out Positive;
-                         Last : in out Natural) is
+   procedure Update_Static_Text (Display_Brightness : in Greyscales;
+                                 Text : in Unbounded_String;
+                                 Start_At, First : in out Positive) is
 
-      -- Text, Start_At, First and last are package wide variables.
+      --  Text, and First are package wide variables.
+      
+      Char_Position : Secondary_Digits := Secondary_Digits'First;
 
-      Base : Constant Natural := 10;
-      Number : Integer range -99999 .. 999999;
-      Is_Negative : Boolean;
-
-   begin -- Update_Dec
-      if Start_At > Length (Text) then
-         raise Secondary_Configuration with "Missing Dec number";
-      end if; -- Start_At > Length (Text)
-      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-      Number := Integer'Value (Slice (Text, First, Last));
-      Is_Negative := Number < 0;
-      Number := abs (Number);
-      Blank;
-      Set_Digit (Units_Years, Number mod Base, Display_Brightness);
-      -- Display least significant digit even if it is 0.
-      for Digit in reverse Secondary_Digits range Tens_Days .. Tens_Years loop
-         Number := Number / Base;
-         if Number > 0 then
-            -- leading zeros suppressed
-            Set_Digit (Digit, Number mod Base, Display_Brightness);
-         elsif Is_Negative then
-            Set_Greyscale (Display_Array (Digit).Driver,
-                           Display_Array (Digit).Segment_Array (Segment_g),
+   begin -- Update_Static_Text
+      Blank; -- Initialisation and default if an exception is raised.
+      First := Start_At;
+      if First + 1 > Length (Text) then
+         raise Secondary_Configuration with "Missing text";
+      end if; -- First + 1 > Length (Text)
+      if Is_In (Element (Text, First), Delimiter_Set) then
+         First := @ + 1; -- Skip the delimiter
+      else
+         raise Secondary_Configuration with "Expected ',' and found '" & 
+           Element (Text, First) & ''';
+      end if; -- Is_In (Element (Text, First), Delimiter_Set)
+      loop -- Set one character
+         if Is_Alphanumeric (Element (Text, First)) or
+           Is_Space (Element (Text, First))
+         then
+            if First < Length (Text) and then
+              Element (Text, First + 1) = '.'
+            then
+               Set_Character (Char_Position, Element (Text, First),
+                              Display_Brightness, True);
+               First := @ + 2;
+            else
+               Set_Character (Char_Position, Element (Text, First),
+                              Display_Brightness);
+               First := @ + 1;
+            end if; -- First < Length (Text) and then ...Char_Position
+         else
+            Set_Character (Char_Position, Element (Text, First),
                            Display_Brightness);
-            Is_Negative := False;
-            -- one negative sign only
-         end if; -- Number > 0
-      end loop; -- Digit in reverse Secondary_Digits range ...
+            First := @ + 1;
+         end if; -- Is_Alphanumeric (Element (Text, First)) or ...
+         exit when Char_Position = Secondary_Digits'Last or
+           First > Length (Text);
+         Char_Position := Display_Digits'Succ (Char_Position);
+      end loop; -- Set one character
    exception
       when Event: Others =>
-         Put_Error ("Error in Dec item", Event);
-   end Update_Dec;
-
-   procedure Update_Hex (Display_Brightness : in Greyscales;
-                         Text : in Unbounded_String;
-                         Start_At, First : in out Positive;
-                         Last : in out Natural) is
-
-      -- Text, Start_At, First and last are package wide variables.
-
-      Base : Constant Natural := 16;
-      Number : Natural range 0 .. 16#FFFFFF#;
-      Number_Text : Unbounded_String;
-
-   begin -- Update_Hex
-      if Start_At > Length (Text) then
-         raise Secondary_Configuration with "Missing Hex number";
-      end if; -- Start_At > Length (Text)
-      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-      Number_Text := Unbounded_Slice (Text, First, Last);
-      Number_Text := "16#" & Trim (Number_Text, Both) & "#";
-      Number := Natural'Value (To_String (Number_Text));
-      Blank;
-      Set_Digit (Units_Years, Number mod Base, Display_Brightness);
-      -- Display least significant digit even if it is 0.
-      for Digit in reverse Secondary_Digits range Tens_Days .. Tens_Years loop
-         Number := Number / Base;
-         if Number > 0 then
-            -- leading zeros suppressed
-            Set_Digit (Digit, Number mod Base, Display_Brightness);
-         end if; -- Number > 0
-      end loop; -- Digit in reverse Secondary_Digits range ...
-   exception
-      when Event: Others =>
-         Put_Error ("Error in Hex item", Event);
+         Put_Error ("Error in Static_Text item", Event);
          raise;
-   end Update_Hex;
+   end Update_Static_Text;
+
+   procedure Update_Scrolling_Text (Display_Brightness : in Greyscales;
+                                    Text : in Unbounded_String;
+                                    First : in out Positive;
+                                    Text_Display_Start : in Positive;
+                                    Display_Start : in Secondary_Digits) is
+
+      --  Text and First are package wide variables
+      --  Assuming the logic is correct, it should not be possible to raise an
+      --  exception in this procedure, due to an error in the confifuration
+      --  file.  
+      
+      Current : Positive := Text_Display_Start;
+      Char_Position : Secondary_Digits := Display_Start;
+
+   begin -- Update_Scrolling_Text
+      loop -- Set one character
+         First := Current; -- For error messaging
+         if Is_Alphanumeric (Element (Text, Current)) or
+           Is_Space (Element (Text, Current))
+         then
+            if Length (Text) > Current and then
+              Element (Text, Current + 1) = '.'
+            then
+               Set_Character (Char_Position, Element (Text, Current),
+                              Display_Brightness, True);
+               Current := @ + 2;
+            else
+               Set_Character (Char_Position, Element (Text, Current),
+                              Display_Brightness);
+               Current := @ + 1;
+            end if; -- Length (Text) > Current and then ...
+         else
+            Set_Character (Char_Position, Element (Text, Current),
+                           Display_Brightness);
+            Current := @ + 1;
+         end if; -- Is_Alphanumeric (Element (Text, Current)) or ...
+         exit when Char_Position = Secondary_Digits'Last or
+           Current > Length (Text);
+         Char_Position := Display_Digits'Succ (Char_Position);
+      end loop; -- Update_Scrolling_Text
+   exception
+      when Event: Others =>
+         Put_Error ("Error in Scrolling_Text item", Event);
+         raise;
+   end Update_Scrolling_Text;
 
    function Is_Display_Digit (S : in String) return Boolean is
 
@@ -302,9 +366,9 @@ package body Secondary_Display is
    end Is_Segment;
 
    procedure Update_Arbitrary (Display_Brightness : in Greyscales;
-                              Text : in Unbounded_String;
-                              Start_At, First : in out Positive;
-                              Last : in out Natural) is
+                               Text : in Unbounded_String;
+                               Start_At, First : in out Positive;
+                               Last : in out Natural) is
 
       -- Text, Start_At, First and Last are package wide variables.
 
@@ -324,7 +388,7 @@ package body Secondary_Display is
                Segment := Segments'Value (Slice (Text, First, Last));
                Set_Greyscale (Display_Array (Current_Digit).Driver,
                               Display_Array (Current_Digit).
-                                Segment_Array (Segment),
+                              Segment_Array (Segment),
                               Display_Brightness);
             else
                raise Secondary_Configuration with "Digit undefined";
@@ -350,9 +414,13 @@ package body Secondary_Display is
    Item_List : Item_Lists.List := Empty_List;
    Item_Cursor : Item_Lists.Cursor;
    Item_Number : Positive := 1;
-   Time_Remaining : Second_Number := Second_Number'First;
-   Dynamic, First_Run, First_Time : Boolean := True;
+   Time_Remaining : Duration_Counters := Duration_Counters'First;
+   First_Run, First_Time : Boolean := True;
    Run, File_Read : Boolean := False;
+   Text_Display_Start : Positive;
+   --  First character of scrolling text to be displayed.
+   Display_Start : Secondary_Digits;
+   --  Display where the first character of scrolling text is placed.
 
    procedure Resync_Secondary is
       -- causes secondary display to be cleared and restartes at 00 seconds.
@@ -360,8 +428,7 @@ package body Secondary_Display is
    begin -- Resync_Secondary
       Item_Cursor := Item_Lists.First (Item_List);
       Item_Number := 1;
-      Time_Remaining := Second_Number'First;
-      Dynamic := True;
+      Time_Remaining := Duration_Counters'First;
       First_Run := True;
       First_Time := True;
       Run := False;
@@ -397,7 +464,7 @@ package body Secondary_Display is
          Blank;
          Report_Current_Item (Head ("Blank - Initialise_Secondary_Display",
                                     UI_Strings'Length));
-      end if; -- Exists (File_Name)
+      end if; -- Is_Open (Text_File)
    end Initialise_Secondary_Display;
 
    procedure Update_Secondary (Current_Time : in Time;
@@ -408,15 +475,15 @@ package body Secondary_Display is
       Start_At, First : Positive;
       Last : Natural;
       Display_Item : Display_Items;
-      Item_Duration : Second_Number;
+      Item_Duration : Item_Durations;
 
    begin -- Update_Secondary
       Run := (Run or Second (Current_Time) = 0) and not Is_Empty (Item_List);
-      -- Syncronise first run with 0 seconds, stop if the list ie empty or
+      -- Synchronise first run with 0 seconds, stop if the list ie empty or
       -- becomes empty.
       if Run then
          -- something to display
-         if Dynamic and Step_Display and not First_Run then
+         if Step_Display and not First_Run then
             -- item to be displayed may change
             if Time_Remaining > 1 then
                -- continue with displaying the same item
@@ -439,7 +506,7 @@ package body Secondary_Display is
                   Item_Number := 1;
                end if; -- Item_Cursor /= Item_Lists.No_Element
             end if; --  Time_Remaining > 1
-         end if; --  Dynamic and Step_Display and not First_Run
+         end if; -- Step_Display and not First_Run
          if Item_Cursor /= Item_Lists.No_Element then
             -- parse current item
             Text := Item_List (Item_Cursor);
@@ -450,10 +517,9 @@ package body Secondary_Display is
             Start_At := Last + 1;
             Display_Item := Display_Items'Value (Slice (Text, First, Last));
             Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-            Item_Duration := Second_Number'Value (Slice (Text, First, Last));
+            Item_Duration := Item_Durations'Value (Slice (Text, First, Last));
             Start_At := Last + 1;
             -- point to character after last digit, possible delimiter
-            Dynamic := Dynamic and Item_Duration > 0;
             if First_Time then
                Time_Remaining := Item_Duration;
             end if; -- First_Time
@@ -463,10 +529,45 @@ package body Secondary_Display is
                when Time_Zone =>
                   Update_Time (Current_Time, Display_Brightness, Text, Start_At,
                                First, Last);
-               when Dec =>
-                  Update_Dec (Display_Brightness, Text, Start_At, First, Last);
-               when Hex =>
-                  Update_Hex (Display_Brightness, Text, Start_At, First, Last);
+               when Static_Text =>
+                  Update_Static_Text (Display_Brightness, Text, Start_At,
+                                      First);
+               when Scrolling_Text =>
+                  Blank; -- Initialisation and default if an exception is raised.
+                  if First_Time then
+                     First := Start_At;
+                     if First > Length (Text) then
+                        raise Secondary_Configuration with "Missing scrolling text";
+                     end if; -- First > Length (Text)
+                     if Is_In (Element (Text, First), Delimiter_Set) then
+                        Text_Display_Start := First + 1; -- Skip the delimiter
+                        Display_Start := Secondary_Digits'Last;
+                        --  Initially only the right most display used.
+                     else
+                        raise Secondary_Configuration with
+                          "Scrolling text expected ',' and found '" & 
+                          Element (Text, First) & ''';
+                     end if; -- Is_In (Element (Text, First), Delimiter_Set)
+                     Time_Remaining := Item_Duration + 1;
+                  elsif Time_Remaining = 1 then
+                     if Display_Start = Secondary_Digits'First then
+                        --  Wait until first character is in left most display
+                        --  before stepping to the next character.
+                        if Text_Display_Start < Length (Text) then
+                           Time_Remaining := Item_Duration + 1;
+                           Text_Display_Start := @ + 1;
+                        end if; -- Text_Display_Start < Length (Text)
+                     else
+                        Time_Remaining := Item_Duration + 1;
+                     end if; -- Display_Start = Secondary_Digits'First
+                     if Display_Start /= Secondary_Digits'First then
+                        Display_Start := Secondary_Digits'Pred (Display_Start);
+                     end if; -- Display_Start /= Secondary_Digits'First
+                     --  First character moves across display until it eaches
+                     --  the left display
+                  end if; -- First_Time
+                  Update_Scrolling_Text (Display_Brightness, Text, First,
+                                         Text_Display_Start, Display_Start);
                when Arbitrary =>
                   Update_Arbitrary (Display_Brightness, Text, Start_At, First,
                                    Last);
