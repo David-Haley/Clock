@@ -3,8 +3,10 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 11/04/2025
+-- Last Edit : 12/04/2025
 
+--  20260412 : Limiting the number of exceptions raised due to parsing errors.
+--  Once an item raises an exception it is not reparsed.
 --  20260411 : Error management in Update_Time improved. Static_Text added.
 -- 20250512 : Changes to ensure that every time Update_Secondary is called the
 -- display buffer is rewritten. Correction of a possible flaw, removal of the
@@ -404,8 +406,14 @@ package body Secondary_Display is
          raise;
    end Update_Arbitrary;
 
+   type Items is record
+      Valid : Boolean := True;
+      Item_Number : Positive_Count := Positive_Count'First;
+      Text : Unbounded_String := Null_Unbounded_String;
+   end record; -- Items
+
    package Item_Lists is new
-     Ada.Containers.Doubly_Linked_Lists (Unbounded_String);
+     Ada.Containers.Doubly_Linked_Lists (Items);
    use Item_Lists;
 
    -- State variables of Update_Secondary and Resync_Secondary.
@@ -413,7 +421,6 @@ package body Secondary_Display is
    File_Time : Time;
    Item_List : Item_Lists.List := Empty_List;
    Item_Cursor : Item_Lists.Cursor;
-   Item_Number : Positive := 1;
    Time_Remaining : Duration_Counters := Duration_Counters'First;
    First_Run, First_Time : Boolean := True;
    Run, File_Read : Boolean := False;
@@ -427,7 +434,6 @@ package body Secondary_Display is
 
    begin -- Resync_Secondary
       Item_Cursor := Item_Lists.First (Item_List);
-      Item_Number := 1;
       Time_Remaining := Duration_Counters'First;
       First_Run := True;
       First_Time := True;
@@ -440,6 +446,7 @@ package body Secondary_Display is
    procedure Initialise_Secondary_Display is
 
       Text_File : File_Type;
+      Item : Items;
 
    begin -- Initialise_Secondary_Display
       begin -- File open exception block
@@ -453,7 +460,9 @@ package body Secondary_Display is
       if Is_Open (Text_File) then
          Clear (Item_List);
          while not End_Of_File (Text_File) loop
-            Append (Item_List, Get_Line (Text_File));
+            Item.Item_Number := Line(Text_File);
+            Item.Text :=  Get_Line (Text_File);
+            Append (Item_List, Item);
          end loop; -- End_Of_File (Text_File)
          File_Time := Modification_Time (File_Name);
          Put_Event ("Read " & File_Name & " file time " &
@@ -471,7 +480,6 @@ package body Secondary_Display is
                                Display_Brightness : in Greyscales;
                                Step_Display : Boolean := False) is
 
-      Text : Unbounded_String;
       Start_At, First : Positive;
       Last : Natural;
       Display_Item : Display_Items;
@@ -490,12 +498,15 @@ package body Secondary_Display is
                Time_Remaining := Time_Remaining - 1;
                First_Time := False;
             else
-               -- select the new item
+               -- Select the next item to be displayed item.
                First_Time := True;
-               Next (Item_Cursor);
-               if Item_Cursor /= Item_Lists.No_Element then
-                  Item_Number := @ + 1;
-               else
+               loop -- get next valid Item
+                  Next (Item_Cursor);
+                  exit when Item_Cursor = Item_Lists.No_Element or else 
+                    Element (Item_Cursor).Valid;
+               end loop; -- get next valid Item
+               if Item_Cursor = Item_Lists.No_Element then
+                  --  End of list has been reached
                   if not Exists (File_Name) or else
                     File_Time /= Modification_Time (File_Name) then
                      -- The secondary file has been removed, replaced or
@@ -503,21 +514,33 @@ package body Secondary_Display is
                      Initialise_Secondary_Display;
                   end if; -- File_Time /= Modification_Time (File_Name)
                   Item_Cursor := Item_Lists.First (Item_List);
-                  Item_Number := 1;
-               end if; -- Item_Cursor /= Item_Lists.No_Element
+                  --  Allow for the first item to be invalid or an empty list.
+                  while Item_Cursor /= Item_Lists.No_Element and then
+                    not Element (Item_Cursor).Valid
+                  loop
+                     Next (Item_Cursor);
+                  end loop; -- Item_Cursor /= Item_Lists.No_Element and ...
+               end if; -- Item_Cursor = Item_Lists.No_Element
             end if; --  Time_Remaining > 1
          end if; -- Step_Display and not First_Run
-         if Item_Cursor /= Item_Lists.No_Element then
-            -- parse current item
-            Text := Item_List (Item_Cursor);
-            Report_Current_Item (Head (To_String (Text),
+         if Item_Cursor /= Item_Lists.No_Element and then
+           Element (Item_Cursor).Valid
+         then
+            --  Parse current item.
+            Report_Current_Item (Head (To_String (Element (Item_Cursor).Text),
                                  UI_Strings'Length, ' '));
             Start_At := 1;
-            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+            Find_Token (Element (Item_Cursor).Text, Delimiter_Set, Start_At,
+                        Outside, First, Last);
             Start_At := Last + 1;
-            Display_Item := Display_Items'Value (Slice (Text, First, Last));
-            Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
-            Item_Duration := Item_Durations'Value (Slice (Text, First, Last));
+            Display_Item :=
+              Display_Items'Value (Slice (Element (Item_Cursor).Text, First,
+                                          Last));
+            Find_Token (Element (Item_Cursor).Text, Delimiter_Set, Start_At,
+                        Outside, First, Last);
+            Item_Duration :=
+              Item_Durations'Value (Slice (Element (Item_Cursor).Text, First,
+                                           Last));
             Start_At := Last + 1;
             -- point to character after last digit, possible delimiter
             if First_Time then
@@ -527,36 +550,44 @@ package body Secondary_Display is
                when DDMMYY | MMDDYY | YYMMDD =>
                   Update_Date (Display_Item, Current_Time, Display_Brightness);
                when Time_Zone =>
-                  Update_Time (Current_Time, Display_Brightness, Text, Start_At,
-                               First, Last);
+                  Update_Time (Current_Time, Display_Brightness,
+                               Element (Item_Cursor).Text, Start_At, First,
+                               Last);
                when Static_Text =>
-                  Update_Static_Text (Display_Brightness, Text, Start_At,
+                  Update_Static_Text (Display_Brightness,
+                                      Element (Item_Cursor).Text, Start_At,
                                       First);
                when Scrolling_Text =>
-                  Blank; -- Initialisation and default if an exception is raised.
+                  --  Initialisation and default if an exception is raised.
+                  Blank;
                   if First_Time then
                      First := Start_At;
-                     if First > Length (Text) then
-                        raise Secondary_Configuration with "Missing scrolling text";
-                     end if; -- First > Length (Text)
-                     if Is_In (Element (Text, First), Delimiter_Set) then
+                     if First > Length (Element (Item_Cursor).Text) then
+                        raise Secondary_Configuration with
+                          "Missing scrolling text";
+                     end if; -- First > Length (Element (Item_Cursor).Text)
+                     if Is_In (Element (Element (Item_Cursor).Text, First),
+                               Delimiter_Set)
+                     then
                         Text_Display_Start := First + 1; -- Skip the delimiter
                         Display_Start := Secondary_Digits'Last;
                         --  Initially only the right most display used.
                      else
                         raise Secondary_Configuration with
                           "Scrolling text expected ',' and found '" & 
-                          Element (Text, First) & ''';
-                     end if; -- Is_In (Element (Text, First), Delimiter_Set)
+                          Element (Element (Item_Cursor).Text, First) & ''';
+                     end if; -- Is_In (Element (Element (Item_Cursor).Text ...
                      Time_Remaining := Item_Duration + 1;
                   elsif Time_Remaining = 1 then
                      if Display_Start = Secondary_Digits'First then
                         --  Wait until first character is in left most display
                         --  before stepping to the next character.
-                        if Text_Display_Start < Length (Text) then
+                        if Text_Display_Start <
+                          Length (Element (Item_Cursor).Text)
+                        then
                            Time_Remaining := Item_Duration + 1;
                            Text_Display_Start := @ + 1;
-                        end if; -- Text_Display_Start < Length (Text)
+                        end if; -- Text_Display_Start < ...
                      else
                         Time_Remaining := Item_Duration + 1;
                      end if; -- Display_Start = Secondary_Digits'First
@@ -566,18 +597,20 @@ package body Secondary_Display is
                      --  First character moves across display until it eaches
                      --  the left display
                   end if; -- First_Time
-                  Update_Scrolling_Text (Display_Brightness, Text, First,
+                  Update_Scrolling_Text (Display_Brightness,
+                                         Element (Item_Cursor).Text, First,
                                          Text_Display_Start, Display_Start);
                when Arbitrary =>
-                  Update_Arbitrary (Display_Brightness, Text, Start_At, First,
-                                   Last);
+                  Update_Arbitrary (Display_Brightness,
+                                    Element (Item_Cursor).Text, Start_At,
+                                    First, Last);
                when Blank =>
                   Blank;
             end case; -- Display_Item
             First_Run := False;
          else
             Blank;
-         end if; -- Item_Cursor /= Item_Lists.No_Element
+         end if; -- Item_Cursor /= Item_Lists.No_Element and then ...
       elsif (Step_Display and Exists (File_Name)) and then
         File_Time /= Modification_Time (File_Name) then
          -- Only test that the file has become available once per second, made
@@ -588,8 +621,12 @@ package body Secondary_Display is
       end if; -- Run
    exception
       when Event: Others =>
-         Put_Error ("Error at line :" & Item_Number'Img &
-                      " Character:" & First'Img, Event);
+         Item_list (Item_Cursor).Valid := False;
+         Time_Remaining := Duration_Counters'First;
+         First_Run := False; -- Necessary to cause stepping to next Item.
+         Put_Error ("Error at line :" &
+                    Item_list (Item_Cursor).Item_Number'Img &
+                    " Character:" & First'Img, Event);
    end Update_Secondary;
 
 end Secondary_Display;
