@@ -1,8 +1,12 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 22/03/2025
+-- Last Edit : 12/04/2025
 
+--  20260412 : Enhanced exception management in Secondary_Display package.
+--  20260411 : Error management in Update_Time improved. Static_Text added.
+--  20260329 : Display of Latin_1 characters added. AL_Digit added to localise
+--  definition of the output used for ambient light measurement.
 --  20260322 : Improved smooth sweep, now use three LEDs. Some typo
 --  corrections in comments.
 -- 20250514 : Correction brightness setting error in IOT_Clock procedure.
@@ -47,7 +51,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20250513";
+   Clock_Version : constant Version_String := "20250412";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,
@@ -137,6 +141,7 @@ package LED_Declarations is
       Tens_Years =>  (Years_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
       Units_Years => (Years_Drv, (0, 1, 2, 3, 4, 5, 6, 7)));
 
+   AL_Digit : constant Display_Digits := Units_Seconds;
    AL_Driver : constant LED_Drivers := Seconds_Drv;
    AL_Channel : constant LED_Channels := 15;
    -- LED output used for auto brightness system.

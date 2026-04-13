@@ -3,6 +3,7 @@
 -- Created   : 16/07/2019
 -- Last Edit : 22/03/2025
 
+--  20260329 : Set_Number replaced by Set_Character
 --  20260322 : Improved smooth sweep, now use three LEDs. Some typo
 --  corrections in comments.
 -- 20250514 : Correction of Display_Brightness setting in IOT_Clock update loop.
@@ -94,7 +95,8 @@ procedure IOT_Clock is
       Write_Corrections;
       for Digit in Display_Digits loop
          Initialise_Digit (Digit, Display_Array (Digit).Driver,
-                           Display_Array (Digit).Segment_Array);
+                           Display_Array (Digit).Segment_Array,
+                           No_Decimal => Digit = AL_Digit);
       end loop; -- Digit in Display_Digits
       Initialise_Ambient_Light (AL_Driver, AL_Channel, Gen4);
       Light_LEDs;
@@ -163,11 +165,17 @@ procedure IOT_Clock is
          null;
       when Smooth =>
          Sweep_LEDs (LED_Index + 1) :=
-           Greyscales (Real'Ceiling (Real (Display_Brightness) *
+           Greyscales (Real'Floor (Real (Display_Brightness) *
                        (Real (Sub_Second (Next_Time)) ** Gamma)));
+         if Sweep_LEDs (LED_Index + 1) < Minimum_Brightness then
+            Sweep_LEDs (LED_Index + 1) := Minimum_Brightness;
+         end if; -- Sweep_LEDs (LED_Index + 1) < Minimum_Brightness
          Sweep_LEDs (LED_Index - 1) :=
-           Greyscales (Real'Ceiling (Real (Display_Brightness) *
+           Greyscales (Real'Floor (Real (Display_Brightness) *
                        (Real (1.0 - Sub_Second (Next_Time)) ** Gamma)));
+         if Sweep_LEDs (LED_Index - 1) < Minimum_Brightness then
+            Sweep_LEDs (LED_Index - 1) := Minimum_Brightness;
+         end if; -- Sweep_LEDs (LED_Index - 1)
       when With_Tail =>
          Sweep_LEDs (LED_Index + 1) :=
            Greyscales (Real'Floor (Real (Display_Brightness) *
@@ -192,22 +200,28 @@ procedure IOT_Clock is
    procedure Update_Primary (Next_Time : in Time;
                              Display_Brightness : in Lit_Greyscales) is
 
+      subtype Decimal_Digit is Natural range 0 .. 9;
+
       Hour : Hour_Number :=
         Ada.Calendar.Formatting.Hour (Next_Time, UTC_Time_Offset (Next_Time));
       Minute : Minute_Number :=
         Ada.Calendar.Formatting.Minute (Next_Time, UTC_Time_Offset (Next_Time));
       Second : Second_Number := Ada.Calendar.Formatting.Second (Next_Time);
 
+      function To_Character (Number : in Decimal_Digit) return Character is
+         (Character'Val (Character'Pos ('0') + Number));
+
    begin -- Update_Primary
-      Set_Digit (Tens_Hours, Hour / 10, Display_Brightness);
-      Set_Digit (Units_Hours, Hour mod 10, Display_Brightness,
+      Set_Character (Tens_Hours, To_Character (Hour / 10), Display_Brightness);
+      Set_Character (Units_Hours, To_Character (Hour mod 10), Display_Brightness,
                  not Get_Chime_Toggle);
       -- Turn on decimal point when chiming is disabled by user control
-      Set_Digit (Tens_Minutes, Minute / 10, Display_Brightness);
-      Set_Digit (Units_Minutes, Minute mod 10, Display_Brightness);
-      Set_Digit (Tens_Seconds, Second / 10, Display_Brightness);
-      Set_Digit (Units_Seconds, Second mod 10, Display_Brightness, False, True);
-      -- DP driver is assigned to automatic brightness
+      Set_Character (Tens_Minutes, To_Character (Minute / 10), Display_Brightness);
+      Set_Character (Units_Minutes, To_Character (Minute mod 10),
+                 Display_Brightness);
+      Set_Character (Tens_Seconds, To_Character (Second / 10), Display_Brightness);
+      Set_Character (Units_Seconds, To_Character (Second mod 10),
+                 Display_Brightness);
    end Update_Primary;
 
    Dot_Correction : Dot_Corrections := Read_Brightness_Config;
