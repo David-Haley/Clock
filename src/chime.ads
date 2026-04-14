@@ -35,7 +35,14 @@ package Chime is
    -- Uses aplay to play volume_test.wav from directory from which the
    -- appliction was started.
 
-   procedure End_Chiming;
+   task Strike_Hour is
+      entry Stop;
+   end Strike_Hour;
+
+   task Run_Commands is
+   end Run_Commands;
+
+   procedure End_Chiming renames Strike_Hour.Stop;
    -- End Chiming process to allow main application to exit
 
 end Chime;

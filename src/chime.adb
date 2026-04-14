@@ -94,13 +94,6 @@ package body Chime is
 
    end Chime_State;
 
-   task Strike_Hour is
-      entry End_Chiming;
-   end Strike_Hour;
-
-   task Run_Commands is
-   end Run_Commands;
-
    procedure Chiming is
 
       -- Enables chiming
@@ -149,15 +142,6 @@ package body Chime is
       when Event : others =>
          Put_Error ("Test_Volume: ", Event);
    end Test_Volume;
-
-
-   procedure End_Chiming is
-
-      -- End Chiming process to allow main application to exit
-
-   begin -- End_Chiming
-      Strike_Hour.End_Chiming;
-   end End_Chiming;
 
    protected body Chime_State is
 
@@ -326,11 +310,11 @@ package body Chime is
       Next_Time := Next_Hour;
       while Run_Chime loop
          select
-            accept End_Chiming  do
+            accept Stop do
                Run_Chime := False;
                Command_Queue.Enqueue (Null_Unbounded_String);
                -- Terminate Run_Commands
-            end End_Chiming;
+            end Stop;
          or
             delay until Next_Time;
             This_Hour := Hour (Next_Time, UTC_Time_Offset (Next_Time));

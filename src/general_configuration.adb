@@ -2,8 +2,9 @@
 
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 10/05/2025
+-- Last Edit : 14/04/2026
 
+--  20260414 : Propagated exceptions raised to iot_clock exception handler.
 -- 20250510: Providing for simulated sweep hand modes to be set on startup.
 -- 20250411 : Corrected Minimum_Chime return value
 -- 20250410 : Read_General_Configuration, Play_Command and Volume_Command added.
@@ -97,7 +98,8 @@ package body General_Configuration is
          Close_CSV;
       exception
          when E : others =>
-            Put_Error ("General configuration - ", E);
+            Put_Error ("General configuration", E);
+            raise;
       end Read;
 
       entry Minimum_Brightness (L : out Lit_Greyscales) when Defined is
