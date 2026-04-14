@@ -38,6 +38,12 @@ package body User_Interface_Server is
       -- Returns true if chiming is turned on in UI, defaults to true on
       -- startup.
 
+      function Get_Ambient_Override return Greyscales;
+      -- Returns the ambient light override; 0 = no override.
+
+      procedure Set_Ambient_Override (Override : in Greyscales);
+      -- Stores the ambient light override from the UI request.
+
       procedure Report_Chiming (Chiming_Enabled : in Boolean;
                                 Chime_Volume : in Chime_Volumes);
       -- Provides for reporting of current chime state to user interface.
@@ -71,6 +77,7 @@ package body User_Interface_Server is
    private
 
       Clock_Status : Status_Records;
+      Ambient_Override_Value : Greyscales := Greyscales'First;
 
    end UI_Data;
 
@@ -78,6 +85,8 @@ package body User_Interface_Server is
    end UI_Server;
 
    function Get_Chime_Toggle return Boolean is (UI_Data.Get_Chime_Toggle);
+
+   function Get_Ambient_Override return Greyscales is (UI_Data.Get_Ambient_Override);
 
       -- Returns true if chiming is turned on in UI, defaults to true on
       --startup.
@@ -163,6 +172,7 @@ package body User_Interface_Server is
          -- Returns after after Receive_Timeout or when packet received.
          if Request_Record.User_Interface_Version = Interface_Version then
             -- only action commands with matching interface version
+            UI_Data.Set_Ambient_Override (Request_Record.Ambient_Override);
             Client_Address.Port := Response_Port;
             case Request_Record.Request is
             when Toggle_Chime =>
@@ -192,6 +202,14 @@ package body User_Interface_Server is
 
       function Get_Chime_Toggle return Boolean is
         (UI_Data.Clock_Status.Chime_Toggle);
+
+      function Get_Ambient_Override return Greyscales is
+        (UI_Data.Ambient_Override_Value);
+
+      procedure Set_Ambient_Override (Override : in Greyscales) is
+      begin -- Set_Ambient_Override
+         UI_Data.Ambient_Override_Value := Override;
+      end Set_Ambient_Override;
 
          -- Returns true if chiming is turned on in UI, defaults to true on
          --startup.
@@ -249,8 +267,7 @@ package body User_Interface_Server is
          -- Provides for reporting of LED state to the User Interface.
 
       begin -- Report_LED
-         UI_Data.Clock_Status.LED_Array (Driver, Channel) :=
-           Greyscale > Greyscales'First;
+         UI_Data.Clock_Status.LED_Array (Driver, Channel) := Greyscale;
       end Report_LED;
 
       procedure Report_Clock_Version (Clock_Version : Version_String) is

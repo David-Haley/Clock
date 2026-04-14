@@ -42,10 +42,11 @@ def print_status(data: dict, n: int = 0) -> None:
     total_lit = sum(1 for row in leds for v in row if v)
     print(f"  lit LEDs     : {total_lit} / {len(leds) * (len(leds[0]) if leds else 0)}")
     for r, row in enumerate(leds):
-        ones = [i for i, v in enumerate(row) if v]
         name = LED_DRIVER_NAMES[r] if r < len(LED_DRIVER_NAMES) else f"row{r}"
-        if ones:
-            print(f"    [{r}] {name:16s}: ch {ones}")
+        active = [(i, v) for i, v in enumerate(row) if v]
+        if active:
+            ch_str = "  ".join(f"ch{i}={v}" for i, v in active)
+            print(f"    [{r}] {name:16s}: {ch_str}")
         else:
             print(f"    [{r}] {name:16s}: (all off)")
 

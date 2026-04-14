@@ -133,7 +133,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px;
-    min-width: 220px;
+    width: 240px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -158,6 +158,18 @@
     flex-direction: column;
     gap: 6px;
   }
+  /* ── Ambient override slider ─────────────────────────────────── */
+  #ambient-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  #ambient-row label { color: var(--dim); white-space: nowrap; flex-shrink: 0; }
+  #ambient-slider { flex: 1; accent-color: var(--led-color); }
+  #ambient-val { color: var(--text); min-width: 48px; text-align: right; font-size: 0.78rem; white-space: nowrap; }
   .ctrl-btn {
     display: flex;
     align-items: center;
@@ -208,6 +220,7 @@
   <span class="sep">|</span>
   <button id="display-mode-btn">Displays: Inside</button>
   <button id="pcb-details-btn">PCB detail: On</button>
+  <button id="seg-brightness-btn">Seg brightness: On</button>
 </div>
 
 <div id="main">
@@ -305,9 +318,9 @@
         <span class="stat-label">Ambient light</span>
         <span class="stat-value" id="stat-ambient">—</span>
       </div>
-      <div class="stat-row" style="align-items:flex-start;">
+      <div class="stat-row">
         <span class="stat-label">Secondary</span>
-        <span class="stat-value" id="stat-item" style="word-break:break-all;max-width:130px;">—</span>
+        <span class="stat-value" id="stat-item" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">—</span>
       </div>
       <div class="stat-row">
         <span class="stat-label">Clock version</span>
@@ -322,6 +335,11 @@
       <button class="ctrl-btn" data-cmd="Volume_Down"><kbd>−</kbd> Volume down</button>
       <button class="ctrl-btn" data-cmd="Volume_Test"><kbd>T</kbd> Volume test</button>
       <button class="ctrl-btn" data-cmd="Cycle_Sweep"><kbd>S</kbd> Cycle sweep</button>
+      <div id="ambient-row">
+        <label for="ambient-slider">Ambient</label>
+        <input type="range" id="ambient-slider" min="0" max="4095" value="0" step="1">
+        <span id="ambient-val">auto</span>
+      </div>
     </div>
   </div>
 </div><!-- /main -->
@@ -383,7 +401,7 @@ function buildDigit(svgEl) {
     const vals = [ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7];
     const segNames = ['a','b','c','d','e','f','g','dp'];
     segNames.forEach((name, i) => {
-      const intensity = ledIntensity(vals[i]);
+      const intensity = segBrightnessEnabled ? ledIntensity(vals[i]) : (vals[i] ? 1.0 : 0.0);
       paths[name].setAttribute('fill-opacity', (0.08 + intensity * 0.92).toFixed(3));
     });
   };
@@ -469,11 +487,14 @@ MARKER_POSITIONS.forEach(pos => {
 });
 
 // ── Dimming-ready intensity helper ────────────────────────────────────────
-// Handles current boolean values and future numeric (0-4095) values.
+// Handles boolean values and numeric (0-4095) values.
 function ledIntensity(v) {
   if (typeof v === 'boolean') return v ? 1.0 : 0.0;
   return Math.min(1.0, Math.max(0.0, v / 4095));
 }
+
+// Whether 7-segment digits reflect PWM brightness (vs binary on/off)
+let segBrightnessEnabled = true;
 
 // ── LED array update ───────────────────────────────────────────────────────
 function updateLEDs(leds) {
@@ -568,6 +589,14 @@ function setDisplayMode(mode) {
   localStorage.setItem('displayMode', mode);
 }
 
+// ── Configuration: segment brightness ────────────────────────────────────
+function setSegBrightness(enabled) {
+  segBrightnessEnabled = enabled;
+  document.getElementById('seg-brightness-btn').textContent =
+    'Seg brightness: ' + (enabled ? 'On' : 'Off');
+  localStorage.setItem('segBrightness', enabled ? '1' : '0');
+}
+
 // ── Configuration: PCB detail ─────────────────────────────────────────────
 function setPcbDetails(show) {
   const group = document.getElementById('pcb-details');
@@ -587,6 +616,9 @@ function setPcbDetails(show) {
 
   const pcb = localStorage.getItem('pcbDetails');
   if (pcb === '0') setPcbDetails(false);
+
+  const segBr = localStorage.getItem('segBrightness');
+  if (segBr === '0') setSegBrightness(false);
 })();
 
 // ── Config bar event listeners ─────────────────────────────────────────────
@@ -606,6 +638,10 @@ document.getElementById('display-mode-btn').addEventListener('click', () => {
 document.getElementById('pcb-details-btn').addEventListener('click', () => {
   const current = localStorage.getItem('pcbDetails');
   setPcbDetails(current === '0' ? true : false);
+});
+
+document.getElementById('seg-brightness-btn').addEventListener('click', () => {
+  setSegBrightness(!segBrightnessEnabled);
 });
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
@@ -648,9 +684,11 @@ function connect() {
 connect();
 
 // ── Controls ───────────────────────────────────────────────────────────────
+let _ambientOverride = 0;
+
 function sendCmd(cmd) {
   if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({request: cmd}));
+    ws.send(JSON.stringify({request: cmd, ambient_override: _ambientOverride}));
 }
 
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
@@ -670,6 +708,18 @@ document.addEventListener('keydown', evt => {
   if (evt.ctrlKey || evt.altKey || evt.metaKey) return;
   const cmd = KEY_MAP[evt.key.toLowerCase()];
   if (cmd) sendCmd(cmd);
+});
+
+// ── Ambient light override slider ──────────────────────────────────────────
+const ambientSlider = document.getElementById('ambient-slider');
+const ambientVal    = document.getElementById('ambient-val');
+
+ambientSlider.addEventListener('input', () => {
+  _ambientOverride = parseInt(ambientSlider.value, 10);
+  ambientVal.textContent = _ambientOverride === 0 ? 'auto' : _ambientOverride;
+  // Send immediately so the clock responds without waiting for next poll
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({request: 'Get_Status', ambient_override: _ambientOverride}));
 });
 </script>
 </body>
