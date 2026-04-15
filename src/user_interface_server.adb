@@ -3,9 +3,9 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 14/04/2026
+-- Last Edit : 15/04/2026
 
---  20260414 : More elegent termination provided. UI version reporting
+--  20260415 : More elegent termination provided. UI version reporting
 --  corrected where there ie a mismatch between the server and client.
 -- 20250511 : Provision for multiple simulated sweep hand modes.
 -- 20220922 : Termination mechanism changed to use abort.
@@ -24,6 +24,7 @@
 with Ada.Streams; use Ada.Streams;
 with Interfaces; use Interfaces;
 with GNAT.Sockets; use GNAT.Sockets;
+with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with Clock_Driver; use Clock_Driver;
 with Shared_User_Interface; use Shared_User_Interface;
 with Secondary_Display; use Secondary_Display;
@@ -157,8 +158,11 @@ package body User_Interface_Server is
                Run_Server := False;
             end Stop;
          else
-            Receive_Socket (RX_Socket, RX_Buffer, Last, Client_Address);
-            -- Returns after after Receive_Timeout or when packet received.
+            begin -- Rx exception block
+               Receive_Socket (RX_Socket, RX_Buffer, Last, Client_Address);
+            exception when Socket_Error =>
+               null; -- an exception is raised if there is a receive timeout
+            end; -- Rx exception block
             if Last > 0 then
                if Request_Record.User_Interface_Version = Interface_Version then
                   -- only action commands with matching interface version
@@ -195,7 +199,11 @@ package body User_Interface_Server is
                Send_Socket (TX_Socket, Status_TX_Buffer, Last, Client_Address);
             end if; -- Last > 0
          end select;
-      end loop; -- Run Server 
+      end loop; -- Run Server
+   exception
+      when Event: others =>
+         Put_Error ("UI_Server", Event);
+         raise;
    end UI_Server;
 
    protected body UI_Data is
