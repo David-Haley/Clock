@@ -1,8 +1,9 @@
 -- Main programme of IOT Clock
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 22/03/2025
+-- Last Edit : 14/04/2026
 
+--  20260414 : Termination code improved.
 --  20260329 : Set_Number replaced by Set_Character
 --  20260322 : Improved smooth sweep, now use three LEDs. Some typo
 --  corrections in comments.
@@ -55,6 +56,7 @@ with Ada.Calendar.Time_Zones; use Ada.Calendar.Time_Zones;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Numerics.Generic_Elementary_Functions;
+with Ada.Command_Line; use Ada.Command_Line;
 with Interfaces; use Interfaces;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with RPi_GPIO; use RPi_GPIO;
@@ -66,7 +68,7 @@ with General_Configuration; use General_Configuration;
 with Brightness; use Brightness;
 with Chime; use Chime;
 with Secondary_Display; use Secondary_Display;
-with Shared_User_Interface; use Shared_User_Interface;
+--  with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
 
 procedure IOT_Clock is
@@ -301,17 +303,30 @@ begin -- IOT_Clock
       -- one second.
    end loop; -- One Second loop
    -- stop other tasks to allow termination
+   Blank_LEDs;
    End_Chiming;
    Stop_UI_Server;
    Put_Event ("IOT_Clock stopped (user request)");
    Stop_Events;
    Handlers.Remove;
+   Set_Exit_Status (Success);
 exception
    when Event: others =>
-      Put_Error ("**** Unhandled Exception ****", Event);
-      Stop_UI_Server;
-      End_Chiming;
+      Put_Error ("** Unhandled Exception **", Event);
+      select
+         Stop_UI_Server;
+      or
+         delay 5.0;
+         abort UI_Server;
+      end select;
+      select
+         End_Chiming;
+      or
+         delay 60.0; -- allows for a long audio file.
+         abort Strike_Hour;
+         abort Run_Commands;
+      end select;
       Stop_Events;
       Handlers.Remove;
-      -- terminate execution
+      Set_Exit_Status (Failure);
 end IOT_Clock;

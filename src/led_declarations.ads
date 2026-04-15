@@ -3,6 +3,8 @@
 -- Created   : 28/06/2019
 -- Last Edit : 12/04/2025
 
+--  20260414 : Termination after unhandled exceptions provided. Display
+--  blanked during normal termination;
 --  20260412 : Enhanced exception management in Secondary_Display package.
 --  20260411 : Error management in Update_Time improved. Static_Text added.
 --  20260329 : Display of Latin_1 characters added. AL_Digit added to localise
@@ -51,7 +53,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20250412";
+   Clock_Version : constant Version_String := "20250414";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,

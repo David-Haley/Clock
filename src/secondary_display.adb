@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 12/04/2025
+-- Last Edit : 14/04/2025
 
+--  20260414 : improved location of errors when exceptions are raised.
 --  20260412 : Limiting the number of exceptions raised due to parsing errors.
 --  Once an item raises an exception it is not reparsed.
 --  20260411 : Error management in Update_Time improved. Static_Text added.
@@ -170,8 +171,8 @@ package body Secondary_Display is
    procedure Update_Time (Current_Time : in Time;
                           Display_Brightness : in Greyscales;
                           Text : in Unbounded_String;
-                          Start_At, First : in out Positive;
-                          Last : in out Natural) is
+                          Start_At, First : aliased in out Positive;
+                          Last : aliased in out Natural) is
 
       --  Text Start_At, First and Last are package wide variables.
 
@@ -245,7 +246,7 @@ package body Secondary_Display is
 
    procedure Update_Static_Text (Display_Brightness : in Greyscales;
                                  Text : in Unbounded_String;
-                                 Start_At, First : in out Positive) is
+                                 Start_At, First : aliased in out Positive) is
 
       --  Text, and First are package wide variables.
       
@@ -295,7 +296,7 @@ package body Secondary_Display is
 
    procedure Update_Scrolling_Text (Display_Brightness : in Greyscales;
                                     Text : in Unbounded_String;
-                                    First : in out Positive;
+                                    First : aliased in out Positive;
                                     Text_Display_Start : in Positive;
                                     Display_Start : in Secondary_Digits) is
 
@@ -369,8 +370,8 @@ package body Secondary_Display is
 
    procedure Update_Arbitrary (Display_Brightness : in Greyscales;
                                Text : in Unbounded_String;
-                               Start_At, First : in out Positive;
-                               Last : in out Natural) is
+                               Start_At, First : aliased in out Positive;
+                               Last : aliased in out Natural) is
 
       -- Text, Start_At, First and Last are package wide variables.
 
@@ -480,8 +481,8 @@ package body Secondary_Display is
                                Display_Brightness : in Greyscales;
                                Step_Display : Boolean := False) is
 
-      Start_At, First : Positive;
-      Last : Natural;
+      Start_At, First : aliased Positive;
+      Last : aliased Natural;
       Display_Item : Display_Items;
       Item_Duration : Item_Durations;
 
@@ -627,6 +628,8 @@ package body Secondary_Display is
          Put_Error ("Error at line :" &
                     Item_list (Item_Cursor).Item_Number'Img &
                     " Character:" & First'Img, Event);
+         --  The exception is not propagated to allow the clock to continue to
+         --  display valid items when one or more invalid items are present.
    end Update_Secondary;
 
 end Secondary_Display;

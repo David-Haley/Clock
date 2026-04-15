@@ -2,8 +2,10 @@
 -- user interface.
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 10/05/2025
+-- Last Edit : 14/04/2026
 
+--  20260414 : More elegent termination provided. UI version reporting
+--  corrected where there ie a mismatch between the server and client.
 -- 20250510 : Provision for multiple simulated sweep hand modes.
 -- 20220920 :  User initiated shutdown moved to main loop.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
@@ -46,7 +48,11 @@ package User_Interface_Server is
                          Greyscale : in Greyscales);
    -- Provides for reporting of LED state  to the User Interface.
 
-   procedure Stop_UI_Server;
+   task UI_Server is
+      entry Stop;
+   end UI_Server;
+
+   procedure Stop_UI_Server renames UI_Server.Stop;
 
    -- Terminate user interface server
 

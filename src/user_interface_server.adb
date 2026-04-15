@@ -1,10 +1,12 @@
--- This package provides server component for a locally distributed IOT_Clock
--- user interface.
+--  This package provides server component for a distributed IOT_Clock user
+--  interface.
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 11/05/2025
+-- Last Edit : 15/04/2026
 
+--  20260415 : More elegent termination provided. UI version reporting
+--  corrected where there ie a mismatch between the server and client.
 -- 20250511 : Provision for multiple simulated sweep hand modes.
 -- 20220922 : Termination mechanism changed to use abort.
 -- 20220920 : User initiated shutdown moved to main loop.
@@ -22,6 +24,7 @@
 with Ada.Streams; use Ada.Streams;
 with Interfaces; use Interfaces;
 with GNAT.Sockets; use GNAT.Sockets;
+with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with Clock_Driver; use Clock_Driver;
 with Shared_User_Interface; use Shared_User_Interface;
 with Secondary_Display; use Secondary_Display;
@@ -74,9 +77,6 @@ package body User_Interface_Server is
 
    end UI_Data;
 
-   task UI_Server is
-   end UI_Server;
-
    function Get_Chime_Toggle return Boolean is (UI_Data.Get_Chime_Toggle);
 
       -- Returns true if chiming is turned on in UI, defaults to true on
@@ -126,15 +126,7 @@ package body User_Interface_Server is
 
    begin -- Report_LED
       UI_Data.Report_LED (Driver, Channel, Greyscale);
-   end Report_LED;
-
-   procedure Stop_UI_Server is
-
-   -- Terminate user interface server
-
-   begin -- Stop_UI_Server
-      abort UI_Server;
-   end Stop_UI_Server; 
+   end Report_LED; 
 
    task body UI_Server is
 
@@ -152,40 +144,66 @@ package body User_Interface_Server is
       for Status_TX_Buffer'Address use Clock_Status'Address;
       pragma Import (Ada, Status_TX_Buffer);
       Last : Stream_Element_Offset;
+      Run_Server : Boolean := True;
 
    begin -- UI_Server
       UI_Data.Report_Clock_Version (Clock_Version);
       Create_Socket (RX_Socket, Family_Inet, Socket_Datagram);
+      Set_Socket_Option (RX_Socket, Socket_Level, (Receive_Timeout, 3.0));
       Bind_Socket (RX_Socket, Server_Address);
       Create_Socket (TX_Socket, Family_Inet, Socket_Datagram);
-      loop -- Server
-         Receive_Socket (RX_Socket, RX_Buffer, Last, Client_Address);
-         -- Returns after after Receive_Timeout or when packet received.
-         if Request_Record.User_Interface_Version = Interface_Version then
-            -- only action commands with matching interface version
-            Client_Address.Port := Response_Port;
-            case Request_Record.Request is
-            when Toggle_Chime =>
-               UI_Data.Toggle_Chime;
-            when Volume_Up =>
-               Raise_Volume;
-            when Volume_Down =>
-               Lower_Volume;
-            when Cycle_Sweep =>
-               Cycle_Sweep_Mode;
-            when Volume_Test =>
-               Test_Volume;
-            when others =>
-               null;
-            end case; -- Request_Record.Request
-         end if; -- Request_Record.User_Interface_Version = Interface_Version
-         -- Unconditionally reply so that any version mismatch is reported to
-         -- client.
-         Clock_Status := UI_Data.Get_Clock_Status;
-         Clock_Status.Request := Request_Record.Request;
-         Clock_Status.Diagnostic_Toggle := Request_Record.Diagnostic_Toggle;
-         Send_Socket (TX_Socket, Status_TX_Buffer, Last, Client_Address);
-      end loop; -- Server 
+      while Run_Server loop
+         select
+            accept Stop do
+               Run_Server := False;
+            end Stop;
+         else
+            begin -- Rx exception block
+               Receive_Socket (RX_Socket, RX_Buffer, Last, Client_Address);
+            exception when Socket_Error =>
+               null; -- an exception is raised if there is a receive timeout
+            end; -- Rx exception block
+            if Last > 0 then
+               if Request_Record.User_Interface_Version = Interface_Version then
+                  -- only action commands with matching interface version
+                  Client_Address.Port := Response_Port;
+                  case Request_Record.Request is
+                  when Toggle_Chime =>
+                     UI_Data.Toggle_Chime;
+                  when Volume_Up =>
+                     Raise_Volume;
+                  when Volume_Down =>
+                     Lower_Volume;
+                  when Cycle_Sweep =>
+                     Cycle_Sweep_Mode;
+                  when Volume_Test =>
+                     Test_Volume;
+                  when others =>
+                     null;
+                  end case; -- Request_Record.Request
+                  Clock_Status := UI_Data.Get_Clock_Status;
+                  --  The Diagnostic_Toggle and Request are not stored in the 
+                  --  protected variable, these are not directly related to the
+                  --  clock status but to the instance of the user interface
+                  --  making the request. There can be more than one instance
+                  --  of a user interface active.
+                  Clock_Status.Diagnostic_Toggle :=
+                    Request_Record.Diagnostic_Toggle;
+                  Clock_Status.Request := Request_Record.Request;
+               else
+                  Clock_Status := UI_Data.Get_Clock_Status;
+                  --  Default values for Request and Diagnostic_Toggle reported
+               end if; -- Request_Record.User_Interface_Version ...
+               --  Unconditionally reply so that any version mismatch is reported
+               --  to client.
+               Send_Socket (TX_Socket, Status_TX_Buffer, Last, Client_Address);
+            end if; -- Last > 0
+         end select;
+      end loop; -- Run Server
+   exception
+      when Event: others =>
+         Put_Error ("UI_Server", Event);
+         raise;
    end UI_Server;
 
    protected body UI_Data is
