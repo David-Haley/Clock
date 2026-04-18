@@ -14,19 +14,19 @@ package MQTT_Subscription is
    subtype Topics is String;
    subtype Brokers is String;
    subtype Users is String;
-   subtype Password is String;
+   subtype Passwords is String;
 
    procedure Create (Topic : in Topics;
                      Broker : in Brokers;
                      User : in Users;
-                     Password : in Password);
+                     Password : in Passwords);
 
    --  Creates a new entry or replaces an existing entry.
 
    procedure Modify (Topic : in Topics;
                      Broker : in Brokers;
                      User : in Users;
-                     Password : in Password);
+                     Password : in Passwords);
 
    --  Topic must already exist, allows changes to Broker, User and Password.
    --  Existing value is retained if an empty string is entered, otherwise the

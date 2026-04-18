@@ -5,14 +5,14 @@
 
 --  Author    : David Haley
 --  Created   : 17/04/2026
---  Last Edit : 18/04/2026
+--  Last Edit : 19/04/2026
 
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Containers.Ordered_Maps;
 with Ada.Exceptions; use Ada.Exceptions;
-with DJH.Parse_CSV; use DJH.Parse_CSV;
+with DJH.Parse_CSV;
 with DJH.One_Time; use DJH.One_Time;
 
 package body MQTT_Subscription is
@@ -24,7 +24,7 @@ package body MQTT_Subscription is
    end record; -- Subscriptions
 
    package Subscription_Stores is new
-     Ada.Containers.Ordered_Maps (Topics, Subscriptions);
+     Ada.Containers.Ordered_Maps (Unbounded_String, Subscriptions);
    use Subscription_Stores;
 
    Subscription_Store : Subscription_Stores.Map :=
@@ -33,7 +33,7 @@ package body MQTT_Subscription is
    procedure Create (Topic : in Topics;
                      Broker : in Brokers;
                      User : in Users;
-                     Password : in Password) is
+                     Password : in Passwords) is
 
       --  Creates a new entry or replaces an existing entry.
 
@@ -43,7 +43,7 @@ package body MQTT_Subscription is
       Subscription := (To_Unbounded_String (Broker),
                        To_Unbounded_String (User),
                        To_Unbounded_String (Password));
-      Insert (Subscription_Store, Topic, Subscription);
+      Insert (Subscription_Store, To_Unbounded_String (Topic), Subscription);
    exception
       when E: others =>
          raise Subscription_Error with "Create - " &
@@ -53,7 +53,7 @@ package body MQTT_Subscription is
    procedure Modify (Topic : in Topics;
                      Broker : in Brokers;
                      User : in Users;
-                     Password : in Password) is
+                     Password : in Passwords) is
 
       --  Topic must already exist, allows changes to Broker, User and
       --  Password. Existing value is retained if an empty string is entered,
@@ -62,7 +62,7 @@ package body MQTT_Subscription is
       Subscription : Subscriptions;
 
    begin -- Modify
-      Subscription := Subscription_Store (Topic);
+      Subscription := Subscription_Store (To_Unbounded_String(Topic));
       if Broker'Length > 0 then
          Subscription.Broker := To_Unbounded_String (Broker);
       end if; -- Broker'Length > 0
@@ -72,7 +72,7 @@ package body MQTT_Subscription is
       if Password'Length > 0 then
          Subscription.Password := To_Unbounded_String (Password);
       end if; -- Password'Length > 0
-      Subscription_Store (Topic) := Subscription;
+      Subscription_Store (To_Unbounded_String (Topic)) := Subscription;
    exception
       when E: others =>
          raise Subscription_Error with "Modify - " &
@@ -85,7 +85,7 @@ package body MQTT_Subscription is
       --  Deletes the specified topic.
 
    begin -- Delete
-      Delete (Subscription_Store, Topic);
+      Delete (Subscription_Store, To_Unbounded_String (Topic));
    exception
       when E: others =>
          raise Subscription_Error with "Delete - " &
@@ -97,7 +97,8 @@ package body MQTT_Subscription is
      --  Returns the broker's host name, from which to subscribe.
 
    begin -- Get_Broker
-      return To_String (Subscription_Store (Topic).Broker);
+      return To_String (Subscription_Store
+        (To_Unbounded_String(Topic)).Broker);
    exception
       when E: others =>
          raise Subscription_Error with "Get_Broker - " &
@@ -109,7 +110,8 @@ package body MQTT_Subscription is
       --  Returns the user name to for login.
 
    begin -- Get_User
-      return To_String (Subscription_Store (Topic).User);
+      return To_String (Subscription_Store
+        (To_Unbounded_String (Topic)).User);
    exception
       when E: others =>
          raise Subscription_Error with "Get_User - " &
@@ -121,7 +123,8 @@ package body MQTT_Subscription is
       -- Returns the password associated with the user.
 
    begin -- Get_Password
-      return To_String (Subscription_Store (Topic).Password);
+      return To_String (Subscription_Store
+        (To_Unbounded_String (Topic)).Password);
    exception
       when E: others =>
          raise Subscription_Error with "Get_Password - " &
@@ -136,13 +139,13 @@ package body MQTT_Subscription is
    --  Returns true if the subscription configuration exixts;
    
       (Exists (MQTT_Subscription_File) and then
-        File_Kind (MQTT_Subscription_File) = Ordinary_File);
+        Kind (MQTT_Subscription_File) = Ordinary_File);
 
    function Topic_Exists (Topic : in Topics) return Boolean is
 
    --  Returns true if a subscription exists for the topic.
 
-      (Contains (Subscription_Store, Topic));
+      (Contains (Subscription_Store, To_Unbounded_String(Topic)));
 
    function Make_Key (Broker : in Brokers;
                       User : in Users) return String is
@@ -186,7 +189,8 @@ package body MQTT_Subscription is
             Subscription.Password :=
               To_Unbounded_String (Decode (Get_Value (Password_H),
                 Make_Key (Get_Value (Broker_H), Get_Value (User_H))));
-            insert (Subscription_Store, Topic, Subscription);
+            insert (Subscription_Store, To_Unbounded_String (Topic),
+                    Subscription);
          end; -- Subscription declaration block
       end loop; -- Next_Row
       Close_CSV;
@@ -216,7 +220,7 @@ package body MQTT_Subscription is
          end if; -- H in Header_Items
       end loop; -- H in Header_Items
       for T in Iterate (Subscription_Store) loop
-         Put_Line (Output_File, Key (T) & Delimiter &
+         Put_Line (Output_File, To_String (Key (T)) & Delimiter &
                    To_String (Element (T).Broker) & Delimiter &
                    To_String (Element (T).User) & Delimiter &
                    Encode (To_String (Element (T).Password),
@@ -239,9 +243,9 @@ package body MQTT_Subscription is
    begin -- Put_Subscriptions
       Put_Line ("List of Topics and Broker details");
       for T in Iterate (Subscription_Store) loop
-         Put (Key (T) & Delimiter &
+         Put (To_String (Key (T)) & Delimiter &
               To_String (Element (T).Broker) & Delimiter &
-              To_String (Element (T).User));
+              To_String (Element (T).User) & Delimiter);
             if Length (Element(T).Password) > 0 then
                Put_Line ("<Has Password>");
             else
