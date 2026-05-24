@@ -1,0 +1,9 @@
+library project Lib_GNATCOLL is
+   for Languages use ("Ada", "C");
+   for Source_Dirs use ("../gnatcoll-core/core/src",
+                        "../gnatcoll-core/core/src/os");
+   for Library_Dir use "../gnatcoll-core/core/lib/gnatcoll_core/static";
+   for Library_Kind use "static";
+   for Library_Name use "gnatcoll_core";
+   for Externally_Built use "true";
+end  Lib_GNATCOLL;

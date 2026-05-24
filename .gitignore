@@ -1,8 +1,10 @@
 # Object file directory
 obj/
 obj_sim/
-
 Test_Area/
+
+#VS code confifuration
+.vscode/
 
 # Clock configurations
 Brightness.csv
