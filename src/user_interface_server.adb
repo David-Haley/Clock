@@ -3,8 +3,9 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 15/04/2026
+-- Last Edit : 26/05/2026
 
+--  20260526 : Compiler warnings removed.
 --  20260415 : More elegent termination provided. UI version reporting
 --  corrected where there ie a mismatch between the server and client.
 -- 20250511 : Provision for multiple simulated sweep hand modes.
@@ -25,15 +26,10 @@ with Ada.Streams; use Ada.Streams;
 with Interfaces; use Interfaces;
 with GNAT.Sockets; use GNAT.Sockets;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
-with Clock_Driver; use Clock_Driver;
-with Shared_User_Interface; use Shared_User_Interface;
-with Secondary_Display; use Secondary_Display;
 with Chime; use Chime;
 with General_Configuration; use General_Configuration;
 
 package body User_Interface_Server is
-
-   use Clock_LEDs;
 
    protected UI_Data is
 
@@ -92,7 +88,7 @@ package body User_Interface_Server is
    end Report_Chiming;
 
 
-    procedure Report_Time (Current_Time : in Time) is
+   procedure Report_Time (Current_Time : in Time) is
       -- Provides for reporting of time to the User Interface.
 
    begin -- Primary_Time
@@ -131,9 +127,8 @@ package body User_Interface_Server is
    task body UI_Server is
 
       RX_Socket, TX_Socket : Socket_Type;
-      Server_Address : Sock_Addr_Type := (Family => Family_Inet,
-                                          Addr => Any_Inet_Addr,
-                                          Port => Request_Port);
+      Server_Address : constant Sock_Addr_Type :=
+        (Family => Family_Inet, Addr => Any_Inet_Addr, Port => Request_Port);
       Client_Address : Sock_Addr_Type;
       Request_Record : Request_Records;
       RX_Buffer : Request_Buffers;
@@ -194,8 +189,8 @@ package body User_Interface_Server is
                   Clock_Status := UI_Data.Get_Clock_Status;
                   --  Default values for Request and Diagnostic_Toggle reported
                end if; -- Request_Record.User_Interface_Version ...
-               --  Unconditionally reply so that any version mismatch is reported
-               --  to client.
+               --  Unconditionally reply so that any version mismatch is
+               --  reported to client.
                Send_Socket (TX_Socket, Status_TX_Buffer, Last, Client_Address);
             end if; -- Last > 0
          end select;

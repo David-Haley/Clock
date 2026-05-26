@@ -6,9 +6,10 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 09/04/2025
+-- Last Edit : 25/05/2026
 
--- 20250409 : Ude of DJH.Parse_CSV and reporting of the Chimes.csv file
+--  20260525 : Compiler warnings removed.
+-- 20250409 : Use of DJH.Parse_CSV and reporting of the Chimes.csv file
 -- date/time via Put_Event added. The Volume_Command and Play Command are now
 -- read from the general configuration file.
 -- 20250406 : Default_Volume now read from General_Configuration.
@@ -27,10 +28,7 @@
 -- 20190707 : Spelling of Chiming corrected
 -- 20190420 : fully qualified parh to aplay required as argument to spawn.
 
-with Ada.Text_IO; use Ada.Text_IO;
-with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
 with Ada.Strings; use Ada.Strings;
-with Ada.Strings.Maps.Constants; use Ada.Strings.Maps.Constants;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
 with Ada.Calendar; use Ada.Calendar;
@@ -41,6 +39,7 @@ with Ada.Containers.Unbounded_Synchronized_Queues;
 with GNAT.OS_Lib; use GNAT.OS_Lib;
 with User_Interface_Server; use User_Interface_Server;
 with General_Configuration; use General_Configuration;
+with Shared_User_Interface; use Shared_User_Interface;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with DJH.Parse_CSV;
 
@@ -89,7 +88,7 @@ package body Chime is
       Previous_File_Time : Time := Value ("2019-01-01 00:00:00");
       -- A time before the hardware existed!
       Chiming_Enabled : Boolean := False;
-      Chime_List : Chime_Lists := (others => Null_Unbounded_String);
+      Chime_List : Chime_Lists := [others => Null_Unbounded_String];
       Current_Volume : Chime_Volumes := Default_Volume;
 
    end Chime_State;
@@ -151,16 +150,16 @@ package body Chime is
 
          type Header is (Hour, File_Name);
 
-          package Parse_Chime is new DJH.Parse_CSV (Header);
-          use Parse_Chime;
+         package Parse_Chime is new DJH.Parse_CSV (Header);
+         use Parse_Chime;
          
          This_Hour : Hour_Number;
 
       begin -- Read_Chime_List
-         If Exists (Chime_File_Name) and then
+         if Exists (Chime_File_Name) and then
            Modification_Time (Chime_File_Name) /= Previous_File_Time then
            -- Only reread file if it has been changed.
-            Chime_List := (others => Null_Unbounded_String);
+            Chime_List := [others => Null_Unbounded_String];
             Read_Header (Chime_File_Name);
             while Next_Row loop
                This_Hour := Hour_Number'Value (Get_Value (Hour));
@@ -175,8 +174,8 @@ package body Chime is
                end if; --  Exists (Get_Value (File_Name))
             end loop; --  Next_Row
             Put_Event ("Read " & Chime_File_Name & ' ' &
-              Local_Image (Modification_Time (Chime_File_Name)));
-              Previous_File_Time := Modification_Time (Chime_File_Name);
+            Local_Image (Modification_Time (Chime_File_Name)));
+            Previous_File_Time := Modification_Time (Chime_File_Name);
             Close_CSV;
          end if; -- Exists (Chime_File_Name) and then ...
       exception
@@ -279,7 +278,7 @@ package body Chime is
 
          One_Hour : constant Duration := 3600.0;
 
-         Now : Time := Clock;
+         Now : constant Time := Clock;
          Year : Year_Number;
          Month : Month_Number;
          Day : Day_Number;
@@ -298,7 +297,7 @@ package body Chime is
            + One_Hour; -- next hour exactly as Time
       end Next_Hour;
 
-      Time_Step : Duration := 120.0;
+      Time_Step : constant Duration := 120.0;
       -- Maximum step in time due to power failure or otherwise before chiming
       -- is suppressed.
       Next_Time : Time;

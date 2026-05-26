@@ -2,8 +2,9 @@
 
 -- Author    : David Haley
 -- Created   : 05/04/2025
--- Last Edit : 14/04/2026
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 --  20260414 : Propagated exceptions raised to iot_clock exception handler.
 -- 20250510: Providing for simulated sweep hand modes to be set on startup.
 -- 20250411 : Corrected Minimum_Chime return value
@@ -13,7 +14,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
-with DJH.Parse_Csv;
+with DJH.Parse_CSV;
 
 package body General_Configuration is
 
@@ -232,10 +233,10 @@ package body General_Configuration is
 
       Result : Unbounded_String;
    
-      begin -- Play_Command
-         Configuration.Play_Command (Result);
-         return To_String (Result);
-      end Play_Command;
+   begin -- Play_Command
+      Configuration.Play_Command (Result);
+      return To_String (Result);
+   end Play_Command;
    
    function Volume_Command return String is
    -- Returns the command line string used to invoke the volume control
@@ -243,10 +244,10 @@ package body General_Configuration is
 
       Result : Unbounded_String;
    
-      begin -- Volume_Command
-         Configuration.Volume_Command (Result);
-         return To_String (Result);
-      end Volume_Command;
+   begin -- Volume_Command
+      Configuration.Volume_Command (Result);
+      return To_String (Result);
+   end Volume_Command;
       
 begin -- General_Configuration
    Configuration.Read;

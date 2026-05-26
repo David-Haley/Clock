@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 14/04/2025
+-- Last Edit : 25/05/2025
 
+--  20260525 : Display of non scrolling text sourced from a MQTT broker added.
 --  20260414 : improved location of errors when exceptions are raised.
 --  20260412 : Limiting the number of exceptions raised due to parsing errors.
 --  Once an item raises an exception it is not reparsed.
@@ -64,11 +65,18 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with LED_Declarations; use LED_Declarations;
+pragma Warnings (Off, "-gnatwu");
 with Clock_Driver; use Clock_Driver;
+--  Warning raised by use clause, results in mutiple errors if removed.
+pragma Warnings (On, "-gnatwu");
 with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
+with MQTT_Subscription;
+with Topic_Manager;
 
 package body Secondary_Display is
+
+   use Clock_LEDs;
 
    subtype Decimal_Digit is Natural range 0 .. 9;
 
@@ -78,13 +86,12 @@ package body Secondary_Display is
      Decimal_Digit_Set or To_Set ('-');
 
    type Display_Items is (DDMMYY, MMDDYY, YYMMDD, Time_Zone, Static_Text, 
-                          Scrolling_Text, Arbitrary, Blank);
+                          Scrolling_Text, MQTT, Arbitrary, Blank);
    subtype Date_Formats is Display_Items range DDMMYY .. YYMMDD;
 
    subtype Duration_Counters is Natural range 0 .. 3600;
-   subtype Item_Durations is Duration_Counters range 1 .. Duration_Counters'Last;
-
-   use Clock_LEDs;
+   subtype Item_Durations is Duration_Counters range
+     1 .. Duration_Counters'Last;
 
    function To_Character (Number : in Decimal_Digit) return Character is
       (Character'Val (Character'Pos ('0') + Number));
@@ -163,7 +170,7 @@ package body Secondary_Display is
                        Display_Brightness);
       end case; -- Format
    exception
-      when Event: Others =>
+      when Event: others =>
          Put_Error ("Error in Date item " & Format'Img & " - ", Event);
          raise;
    end Update_Date;
@@ -238,7 +245,7 @@ package body Secondary_Display is
          Blank;
       end if; -- Defined
    exception
-      when Event: Others =>
+      when Event: others =>
          Blank; 
          Put_Error ("Error in Time item", Event);
          raise;
@@ -246,7 +253,8 @@ package body Secondary_Display is
 
    procedure Update_Static_Text (Display_Brightness : in Greyscales;
                                  Text : in Unbounded_String;
-                                 Start_At, First : aliased in out Positive) is
+                                 Start_At : aliased in Positive;
+                                 First : aliased in out Positive) is
 
       --  Text, and First are package wide variables.
       
@@ -289,7 +297,7 @@ package body Secondary_Display is
          Char_Position := Display_Digits'Succ (Char_Position);
       end loop; -- Set one character
    exception
-      when Event: Others =>
+      when Event: others =>
          Put_Error ("Error in Static_Text item", Event);
          raise;
    end Update_Static_Text;
@@ -335,18 +343,68 @@ package body Secondary_Display is
          Char_Position := Display_Digits'Succ (Char_Position);
       end loop; -- Update_Scrolling_Text
    exception
-      when Event: Others =>
+      when Event: others =>
          Put_Error ("Error in Scrolling_Text item", Event);
          raise;
    end Update_Scrolling_Text;
+
+   procedure Update_MQTT (Display_Brightness : in Greyscales;
+                          Text : in Unbounded_String;
+                          Start_At : aliased in Positive;
+                          First : aliased in out Positive) is
+      
+      Char_Position : Secondary_Digits := Secondary_Digits'First;
+      Last : Natural;
+      MQTT_Text :Unbounded_String;
+      Mc : Positive;
+
+   begin -- Update_MQTT
+      Blank; -- Initialisation and default if an exception is raised.
+      if Start_At + 1 > Length (Text) then
+         raise Secondary_Configuration with "Missing text";
+      end if; -- Start_At + 1 > Length (Text)
+      Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
+      MQTT_Text :=
+        To_Unbounded_String (Topic_Manager.Get_For_Display (Slice (Text, First,
+                                                                   Last)));
+      Mc := 1;
+      loop -- Set one character
+         if Is_Alphanumeric (Element (MQTT_Text, Mc)) or
+           Is_Space (Element (MQTT_Text, Mc))
+         then
+            if Mc < Length (MQTT_Text) and then
+              Element (MQTT_Text, Mc + 1) = '.'
+            then
+               Set_Character (Char_Position, Element (MQTT_Text, Mc),
+                              Display_Brightness, True);
+               Mc := @ + 2;
+            else
+               Set_Character (Char_Position, Element (MQTT_Text, Mc),
+                              Display_Brightness);
+               Mc := @ + 1;
+            end if; -- Mc < Length (MQTT_Text) and then ...Char_Position
+         else
+            Set_Character (Char_Position, Element (MQTT_Text, Mc),
+                           Display_Brightness);
+            Mc := @ + 1;
+         end if; -- Is_Alphanumeric (Element (MQTT_Text, Mc)) or ...
+         exit when Char_Position = Secondary_Digits'Last or
+           Mc > Length (MQTT_Text);
+         Char_Position := Display_Digits'Succ (Char_Position);
+      end loop; -- Set one character
+   exception
+      when Event: others =>
+         Put_Error ("Error in MQTT item", Event);
+         raise;
+   end  Update_MQTT;
 
    function Is_Display_Digit (S : in String) return Boolean is
 
       Result : Boolean := False;
 
    begin -- Is_Display_Digit
-      For D in Secondary_Digits loop
-         Result := Result or
+      for D in Secondary_Digits loop
+         Result := @ or
            Ada.Strings.Equal_Case_Insensitive (Trim (S, Both),
                                                Trim (Secondary_Digits'
                                                      Image (D), Both));
@@ -359,8 +417,8 @@ package body Secondary_Display is
       Result : Boolean := False;
 
    begin -- Is_Segment
-      For Seg in Segments loop
-         Result := Result or
+      for Seg in Segments loop
+         Result := @ or
            Ada.Strings.Equal_Case_Insensitive (Trim (S, Both),
                                                Trim (Segments'
                                                      Image (Seg), Both));
@@ -381,7 +439,7 @@ package body Secondary_Display is
 
    begin -- Update_Arbitrary
       Blank;
-      while Start_At < Length (text) loop
+      while Start_At < Length (Text) loop
          Find_Token (Text, Delimiter_Set, Start_At, Outside, First, Last);
          if Is_Display_Digit (Slice (Text, First, Last)) then
             Digit_Defined := True;
@@ -402,7 +460,7 @@ package body Secondary_Display is
          Start_At := Last + 1; -- advance to next element
       end loop; -- Start_At < Length (text)
    exception
-      when Event: Others =>
+      when Event: others =>
          Put_Error ("Error in Arbitrary item", Event);
          raise;
    end Update_Arbitrary;
@@ -424,7 +482,7 @@ package body Secondary_Display is
    Item_Cursor : Item_Lists.Cursor;
    Time_Remaining : Duration_Counters := Duration_Counters'First;
    First_Run, First_Time : Boolean := True;
-   Run, File_Read : Boolean := False;
+   Run : Boolean := False;
    Text_Display_Start : Positive;
    --  First character of scrolling text to be displayed.
    Display_Start : Secondary_Digits;
@@ -469,6 +527,12 @@ package body Secondary_Display is
          Put_Event ("Read " & File_Name & " file time " &
                     Local_Image (Modification_Time (File_Name)));
          Close (Text_File);
+         if MQTT_Subscription.File_Exists then
+            MQTT_Subscription.Read_Subscription;
+            if Topic_Manager.File_Exists then
+               Topic_Manager.Read_Topics;
+            end if; -- Topic_Manager.File_Exists
+         end if; -- MQTT_Subscription.File_Exists
          Resync_Secondary;
       else
          Blank;
@@ -601,6 +665,9 @@ package body Secondary_Display is
                   Update_Scrolling_Text (Display_Brightness,
                                          Element (Item_Cursor).Text, First,
                                          Text_Display_Start, Display_Start);
+               when MQTT =>
+                  Update_MQTT (Display_Brightness, Element (Item_Cursor).Text,
+                               Start_At, First);
                when Arbitrary =>
                   Update_Arbitrary (Display_Brightness,
                                     Element (Item_Cursor).Text, Start_At,
@@ -621,12 +688,12 @@ package body Secondary_Display is
          Blank;
       end if; -- Run
    exception
-      when Event: Others =>
-         Item_list (Item_Cursor).Valid := False;
+      when Event: others =>
+         Item_List (Item_Cursor).Valid := False;
          Time_Remaining := Duration_Counters'First;
          First_Run := False; -- Necessary to cause stepping to next Item.
          Put_Error ("Error at line :" &
-                    Item_list (Item_Cursor).Item_Number'Img &
+                    Item_List (Item_Cursor).Item_Number'Img &
                     " Character:" & First'Img, Event);
          --  The exception is not propagated to allow the clock to continue to
          --  display valid items when one or more invalid items are present.

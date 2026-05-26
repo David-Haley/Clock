@@ -4,9 +4,9 @@
 
 --  Author    : David Haley
 --  Created   : 18/04/2026
---  Last Edit : 19/04/2026
+--  Last Edit : 55/05/2026
 
---  20260524 : Password retained when modify used.
+--  20260524 : Password retained when modify used. Compiler warnings removed.
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
@@ -15,7 +15,7 @@ with MQTT_Subscription; use MQTT_Subscription;
 
 procedure Sub_Editor is
 
-   Procedure Get_Susbcription (Topic, Broker, User, Password :
+   procedure Get_Susbcription (Topic, Broker, User, Password :
                                out Unbounded_String) is
 
    begin -- Get_Susbcription
@@ -83,7 +83,7 @@ begin -- Sub_Editor
                Put_Line ("Zero length strings not permitted, nothing changed.");
             end if; -- Topic_Exists (To_String (Topic))
          when 'd' | 'D' =>
-            Put_LIne ("Delete Topic, enter topic to be deleted.");
+            Put_Line ("Delete Topic, enter topic to be deleted.");
             Put ("Topic: ");
             Get_Line (Topic);
             if Topic_Exists (To_String (Topic)) then
@@ -124,7 +124,7 @@ begin -- Sub_Editor
                   Put_Line ("Passwords match");
                else
                   Put_Line ("Passwords do not match");
-               end if; -- Get_Password (To_String (Topic)) = To_String (Password)
+               end if; -- Get_Password (To_String (Topic)) = To_String ...
             else
                Put_Line ("Topic not found, password connot be checked.");
             end if; -- Topic_Exists (To_String (Topic))

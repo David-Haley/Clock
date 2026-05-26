@@ -1,66 +1,65 @@
--- Main programme of IOT Clock
--- Author    : David Haley
--- Created   : 16/07/2019
--- Last Edit : 14/04/2026
+--  Main programme of IOT Clock
+--  Author    : David Haley
+--  Created   : 16/07/2019
+--  Last Edit : 25/05/2026
 
+--  20260525 : Removal of compiler warnings
 --  20260414 : Termination code improved.
 --  20260329 : Set_Number replaced by Set_Character
 --  20260322 : Improved smooth sweep, now use three LEDs. Some typo
 --  corrections in comments.
--- 20250514 : Correction of Display_Brightness setting in IOT_Clock update loop.
--- In an attempt to remove what appeared to be a flaw, whereby two calls were
--- made to Get_Ambient_Light, potentially returning different values, one in an
--- if statement and another to set Display_Brightness. In reality this was
--- acceptable because changes in the returned value could only occur if there
--- was an intervening call to Write_LEDs. There are no asynchronous calls to
--- Write_LEDs so this is not possible. The "fix" introduced a more serious issue
--- if Get_Ambient_Light returned 0 then an exception was raised when this was
--- assigned to Display_Brightness which has a minimum value of 1!
--- 20250513 : Smooth added as a simulated sweep mode.
--- 20250512 : Provision for multiple simulated sweep hand modes.
--- 20250411 : Correction of Spelling of Arbitrary, reporting of all
--- configuration file modification times, Play_Command and Volume_Command now
--- read from general configuration file, Time_Zone now supports multiple changes
--- in UTC offset.
--- 20250407 : General_Configuration added, default volume now configurable.
--- Start and end dates for daylight saving added to secondary display.
--- 20220920 : User initiated shutdown moved to main loop.
--- 20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
--- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
--- TLC5940_Driver_Types.
--- 20220125 : Reporting to User Interface updated.
--- 20220123 : Units of hours decimal point indicates chiming disabled. Ambient
--- light initialisation changed to AL_Driver, AL_Channel.
--- 20220119 : UI chiming state read from UI
--- 20220118 : Decoupling UI server from main loop;
--- 20220115 : Error and event handling centralised. Primary and Secondary
--- display brightness updated when sweep updated.
--- 20191111 : The time step for which all updates are run is reduced to 3.0 s.
--- Thus if any correction in time greater than 3.0 s occurs the secondary
--- display will also be resynchronised.
--- 20190726 : Clock_Driver used. Code added to manage large steps in time
--- without requiring too many display updates.
--- 20190725 : Build with user interface
--- 20190722 : Non-linear ramp provided in Update_Sweep using gamma value read
--- from Brightness record.
--- 20190721 : Revised eight step sweep animation. exception handler added.
--- 20190720 : Version number on debug screen. Update frequency increased to 4Hz,
--- that is, every 250ms. Four step sweep animation implemented.
--- 20190719 : Clear_Screen added to Display State
--- 20190718 : debug switch added and time display added to Display_State.
--- 20190717 : Lit_Greyscales corrected and Secondary display added
+--  20250514 : Correction of Display_Brightness setting in IOT_Clock update
+--  loop. In an attempt to remove what appeared to be a flaw, whereby two calls
+--  were made to Get_Ambient_Light, potentially returning different values, one
+--  in an if statement and another to set Display_Brightness. In reality this
+--  was acceptable because changes in the returned value could only occur if
+--  there was an intervening call to Write_LEDs. There are no asynchronous
+--  calls to Write_LEDs so this is not possible. The "fix" introduced a more
+--  serious issue if Get_Ambient_Light returned 0 then an exception was raised
+--  when this was assigned to Display_Brightness which has a minimum value of 1!
+--  20250513 : Smooth added as a simulated sweep mode.
+--  20250512 : Provision for multiple simulated sweep hand modes.
+--  20250411 : Correction of Spelling of Arbitrary, reporting of all
+--  configuration file modification times, Play_Command and Volume_Command now
+--  read from general configuration file, Time_Zone now supports multiple
+--  changes in UTC offset.
+--  20250407 : General_Configuration added, default volume now configurable.
+--  Start and end dates for daylight saving added to secondary display.
+--  20220920 : User initiated shutdown moved to main loop.
+--  20220820 : Events_and_Errors moved to DJH.Events_and_Errors.
+--  20220609 : Port to 64 bit native compiler, Driver_Types renamed to
+--  TLC5940_Driver_Types.
+--  20220125 : Reporting to User Interface updated.
+--  20220123 : Units of hours decimal point indicates chiming disabled. Ambient
+--  light initialisation changed to AL_Driver, AL_Channel.
+--  20220119 : UI chiming state read from UI
+--  20220118 : Decoupling UI server from main loop;
+--  20220115 : Error and event handling centralised. Primary and Secondary
+--  display brightness updated when sweep updated.
+--  20191111 : The time step for which all updates are run is reduced to 3.0 s.
+--  Thus if any correction in time greater than 3.0 s occurs the secondary
+--  display will also be resynchronised.
+--  20190726 : Clock_Driver used. Code added to manage large steps in time
+--  without requiring too many display updates.
+--  20190725 : Build with user interface
+--  20190722 : Non-linear ramp provided in Update_Sweep using gamma value read
+--  from Brightness record.
+--  20190721 : Revised eight step sweep animation. exception handler added.
+--  20190720 : Version number on debug screen. Update frequency increased to
+--  4Hz, that is, every 250ms. Four step sweep animation implemented.
+--  20190719 : Clear_Screen added to Display State
+--  20190718 : debug switch added and time display added to Display_State.
+--  20190717 : Lit_Greyscales corrected and Secondary display added
 
-with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Calendar; use Ada.Calendar;
 with Ada.Calendar.Time_Zones; use Ada.Calendar.Time_Zones;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
-with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Ada.Command_Line; use Ada.Command_Line;
 with Interfaces; use Interfaces;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with RPi_GPIO; use RPi_GPIO;
-with Linux_Signals; use Linux_signals;
+with Linux_Signals; use Linux_Signals;
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with LED_Declarations; use LED_Declarations;
 with Clock_Driver; use Clock_Driver;
@@ -76,8 +75,8 @@ procedure IOT_Clock is
    use Clock_LEDs;
    
    Update_Rate : constant array (Sweep_Modes) of Positive 
-     := (Normal => 8, Smooth => 16, With_Tail => 8,
-     Sub_Second => Sweep_Indices'Modulus);
+     := [Normal => 8, Smooth => 16, With_Tail => 8,
+     Sub_Second => Sweep_Indices'Modulus];
    -- 8 Hz (Normal), 16 Hz (Smooth) 8 Hz (With_Tail) 60 Hz (Sub_Second)
 
    package Real_Numerics is new
@@ -127,7 +126,7 @@ procedure IOT_Clock is
 
    procedure Update_Sweep (Next_Time : in Time;
                            Display_Brightness  : in Lit_Greyscales;
-                           S_Mode : in sweep_Modes;
+                           S_Mode : in Sweep_Modes;
                            Gamma : in Gammas) is
 
       -- Updates all the sweep and marker LEDs. Note all the sweep leds must be
@@ -137,7 +136,7 @@ procedure IOT_Clock is
 
       Blink : constant Second_Duration := 0.125;
       -- Duration markers are turned off as sweep passes by
-      Sweep_LEDs : array (Sweep_Indices) of Greyscales := (others => 0);
+      Sweep_LEDs : array (Sweep_Indices) of Greyscales := [others => 0];
       LED_Index : Sweep_Indices;
       Tail_Brightness : Greyscales := Shift_Right (Display_Brightness, 1);
 
@@ -162,7 +161,7 @@ procedure IOT_Clock is
       LED_Index := Sweep_Indices (Second (Next_Time));
       Sweep_LEDs (LED_Index) := Display_Brightness;
       -- current second LED fully lit
-      case S_mode is
+      case S_Mode is
       when Normal =>
          null;
       when Smooth =>
@@ -204,11 +203,12 @@ procedure IOT_Clock is
 
       subtype Decimal_Digit is Natural range 0 .. 9;
 
-      Hour : Hour_Number :=
+      Hour : constant Hour_Number :=
         Ada.Calendar.Formatting.Hour (Next_Time, UTC_Time_Offset (Next_Time));
-      Minute : Minute_Number :=
+      Minute : constant Minute_Number :=
         Ada.Calendar.Formatting.Minute (Next_Time, UTC_Time_Offset (Next_Time));
-      Second : Second_Number := Ada.Calendar.Formatting.Second (Next_Time);
+      Second : constant Second_Number :=
+        Ada.Calendar.Formatting.Second (Next_Time);
 
       function To_Character (Number : in Decimal_Digit) return Character is
          (Character'Val (Character'Pos ('0') + Number));
@@ -226,7 +226,7 @@ procedure IOT_Clock is
                  Display_Brightness);
    end Update_Primary;
 
-   Dot_Correction : Dot_Corrections := Read_Brightness_Config;
+   Dot_Correction : constant Dot_Corrections := Read_Brightness_Config;
    Time_Step : constant Duration := 3.0;
    -- This is the naximum NTP correction which will allow clock to run all
    -- display updates.
@@ -253,7 +253,7 @@ begin -- IOT_Clock
          delay until Next_Time;
       end if; --  Clock < Next_Time - Time_Step or Clock > Next_Time + Time_Step
       S_Mode := Sweep_Mode;
-      Update_interval := 1.0 / Duration (Update_Rate (S_Mode));
+      Update_Interval := 1.0 / Duration (Update_Rate (S_Mode));
       Update_Count := 1;
       loop -- Update loop
          Ambient_Light := Get_Ambient_Light;
@@ -277,7 +277,7 @@ begin -- IOT_Clock
          Report_Time (Next_Time);
          -- Copy currently displayed time to user interfsce
          for D in LED_Drivers loop
-            For C in LED_Channels loop
+            for C in LED_Channels loop
                Report_LED (D, C, Get_Greyscale (D, C));
             end loop;  -- C in LED_Channels
          end loop; -- D in LED_Drivers

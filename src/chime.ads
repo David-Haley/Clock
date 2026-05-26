@@ -6,16 +6,15 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 25/01/2022
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20220125 : Get volume and Get_Chiming removed from public interface, no
 -- longer used, replaced by reporting to User_Interface_Server.
 -- 20220120 : Test_Volume added.
 -- 20220116 : Raise_Volume, Lower_Volume and Get_Volume added
 -- 20190730 : Functional decription improved.
 -- 20190707 : Spelling of Chiming corrected.
-
-with Shared_User_Interface; use Shared_User_Interface;
 
 package Chime is
 

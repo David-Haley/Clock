@@ -1,0 +1,16 @@
+{
+  "Item_Array": [
+    {
+      "Field": "power",
+      "Item_Id": "PV_Power",
+      "MQTT_Item_Type": "MQTT_STRING",
+      "Topic": "PV_Data"
+    },
+    {
+      "Field": "daily_yeild",
+      "Item_Id": "PV_Yeild",
+      "MQTT_Item_Type": "MQTT_STRING",
+      "Topic": "PV_Data"
+    }
+  ]
+}

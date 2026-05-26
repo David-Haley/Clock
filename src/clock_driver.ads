@@ -3,13 +3,13 @@
 -- by the user interface;
 -- Author    : David Haley
 -- Created   : 16/07/2019
--- Last Edit : 09/06/2022
+-- Last Edit : 26/05/2026
 
+--  20260526 : Compiler warnings removed.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
 
 with RPi_GPIO; use RPi_GPIO;
-with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with LED_Declarations; use LED_Declarations;
 with TLC5940;
 
