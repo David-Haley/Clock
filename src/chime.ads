@@ -6,8 +6,9 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 25/05/2026
+-- Last Edit : 28/05/2026
 
+--  20260528 : Removal of circular elaboration.
 --  20260525 : Compiler warnings removed.
 -- 20220125 : Get volume and Get_Chiming removed from public interface, no
 -- longer used, replaced by reporting to User_Interface_Server.
@@ -15,6 +16,8 @@
 -- 20220116 : Raise_Volume, Lower_Volume and Get_Volume added
 -- 20190730 : Functional decription improved.
 -- 20190707 : Spelling of Chiming corrected.
+
+with Shared_User_Interface; use Shared_User_Interface;
 
 package Chime is
 
@@ -25,10 +28,13 @@ package Chime is
    -- Disables Chiming
 
    procedure Raise_Volume;
-   -- Raises volume 1% for each call
+   -- Raises volume 1% for each call.
 
    procedure Lower_Volume;
-   -- Lowers volume 1% for each call
+   -- Lowers volume 1% for each call.
+
+   function Get_Volume return Chime_Volumes;
+   --  Returns current volume setting.
 
    procedure Test_Volume;
    -- Uses aplay to play volume_test.wav from directory from which the

@@ -14,7 +14,7 @@ project Iot_Clock is
 
    package Compiler is
       for Switches ("c") use ("-g", "-pedantic");
-      for Switches ("ada") use ("-g", "-gnat2022", "-gnatd_F", "-gnatE",
+      for Switches ("ada") use ("-g", "-gnat2022", "-gnatd_F",
         "-gnatwa", "-gnatVa", "-gnatyk", "-gnaty3", "-gnatya", "-gnatyk",
         "-gnatyl", "-gnatyn", "-gnatyr", "-gnaty-d");
    end Compiler;

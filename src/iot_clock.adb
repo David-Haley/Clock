@@ -1,8 +1,9 @@
 --  Main programme of IOT Clock
 --  Author    : David Haley
 --  Created   : 16/07/2019
---  Last Edit : 25/05/2026
+--  Last Edit : 28/05/2026
 
+--  20260528 : Formatting tidy up.
 --  20260525 : Removal of compiler warnings
 --  20260414 : Termination code improved.
 --  20260329 : Set_Number replaced by Set_Character
@@ -67,7 +68,6 @@ with General_Configuration; use General_Configuration;
 with Brightness; use Brightness;
 with Chime; use Chime;
 with Secondary_Display; use Secondary_Display;
---  with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
 
 procedure IOT_Clock is
@@ -215,15 +215,17 @@ procedure IOT_Clock is
 
    begin -- Update_Primary
       Set_Character (Tens_Hours, To_Character (Hour / 10), Display_Brightness);
-      Set_Character (Units_Hours, To_Character (Hour mod 10), Display_Brightness,
-                 not Get_Chime_Toggle);
+      Set_Character (Units_Hours, To_Character (Hour mod 10),
+                     Display_Brightness, not Get_Chime_Toggle);
       -- Turn on decimal point when chiming is disabled by user control
-      Set_Character (Tens_Minutes, To_Character (Minute / 10), Display_Brightness);
+      Set_Character (Tens_Minutes, To_Character (Minute / 10),
+                     Display_Brightness);
       Set_Character (Units_Minutes, To_Character (Minute mod 10),
-                 Display_Brightness);
-      Set_Character (Tens_Seconds, To_Character (Second / 10), Display_Brightness);
+                     Display_Brightness);
+      Set_Character (Tens_Seconds, To_Character (Second / 10),
+                     Display_Brightness);
       Set_Character (Units_Seconds, To_Character (Second mod 10),
-                 Display_Brightness);
+                     Display_Brightness);
    end Update_Primary;
 
    Dot_Correction : constant Dot_Corrections := Read_Brightness_Config;
@@ -295,6 +297,10 @@ begin -- IOT_Clock
       exit when Ctrl_C_Stop or Handlers.Signal_Stop;
       if Display_Brightness > Minimum_Chime and Get_Chime_Toggle then
          Chiming;
+         --  First call to Chiming will cause chime configuration file to be
+         --  read which could result in a delayed update of the display. The
+         --  file will also be read if the file it has been edited since the
+         --  previous call to Chiming;
       else
          Silent;
       end if; -- Display_Brightness > Chime_Brightness and Get_Chime_Toggle

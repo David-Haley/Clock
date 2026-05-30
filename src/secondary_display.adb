@@ -3,11 +3,12 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 25/05/2025
+-- Last Edit : 30/05/2025
 
---  20260525 : Display of non scrolling text sourced from a MQTT broker added.
---  20260414 : improved location of errors when exceptions are raised.
---  20260412 : Limiting the number of exceptions raised due to parsing errors.
+--  202600530: Reading of MQTT configuration made single shot.
+--  20260525: Display of non scrolling text sourced from a MQTT broker added.
+--  20260414: improved location of errors when exceptions are raised.
+--  20260412: Limiting the number of exceptions raised due to parsing errors.
 --  Once an item raises an exception it is not reparsed.
 --  20260411 : Error management in Update_Time improved. Static_Text added.
 -- 20250512 : Changes to ensure that every time Update_Secondary is called the
@@ -487,6 +488,7 @@ package body Secondary_Display is
    --  First character of scrolling text to be displayed.
    Display_Start : Secondary_Digits;
    --  Display where the first character of scrolling text is placed.
+   Subscribed : Boolean := False;
 
    procedure Resync_Secondary is
       -- causes secondary display to be cleared and restartes at 00 seconds.
@@ -527,12 +529,16 @@ package body Secondary_Display is
          Put_Event ("Read " & File_Name & " file time " &
                     Local_Image (Modification_Time (File_Name)));
          Close (Text_File);
-         if MQTT_Subscription.File_Exists then
-            MQTT_Subscription.Read_Subscription;
-            if Topic_Manager.File_Exists then
-               Topic_Manager.Read_Topics;
-            end if; -- Topic_Manager.File_Exists
-         end if; -- MQTT_Subscription.File_Exists
+         if not Subscribed then
+            --  Readinng subscriotion information is one shot
+            if MQTT_Subscription.File_Exists then
+               MQTT_Subscription.Read_Subscription;
+               if Topic_Manager.File_Exists then
+                  Topic_Manager.Read_Topics;
+                  Subscribed := True;
+               end if; -- Topic_Manager.File_Exists
+            end if; -- MQTT_Subscription.File_Exists
+         end if; -- not Subscribed
          Resync_Secondary;
       else
          Blank;
