@@ -6,9 +6,12 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 09/04/2025
+-- Last Edit : 30/05/2026
 
--- 20250409 : Ude of DJH.Parse_CSV and reporting of the Chimes.csv file
+--  20260530: Chiming corrected (reverted ?) and Chime_Enabled initialised True.
+--  20260528: Removal of circular elaboration.
+--  20260525: Compiler warnings removed.
+-- 20250409 : Use of DJH.Parse_CSV and reporting of the Chimes.csv file
 -- date/time via Put_Event added. The Volume_Command and Play Command are now
 -- read from the general configuration file.
 -- 20250406 : Default_Volume now read from General_Configuration.
@@ -27,10 +30,7 @@
 -- 20190707 : Spelling of Chiming corrected
 -- 20190420 : fully qualified parh to aplay required as argument to spawn.
 
-with Ada.Text_IO; use Ada.Text_IO;
-with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
 with Ada.Strings; use Ada.Strings;
-with Ada.Strings.Maps.Constants; use Ada.Strings.Maps.Constants;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
 with Ada.Calendar; use Ada.Calendar;
@@ -73,10 +73,16 @@ package body Chime is
       -- Disables Chiming
 
       procedure Raise_Volume;
-      -- Raises volume 1% for each call
+      -- Raises volume 1% for each call.
 
       procedure Lower_Volume;
-      -- Lowers volume 1% for each call
+      -- Lowers volume 1% for each call.
+
+      procedure Set_Volume;
+      -- Calls amixer to set the OS volume.
+
+      function Get_Volume return Chime_Volumes;
+      --  Returns current volume setting.
 
       function Get_Chiming return Boolean;
       -- returns true if chiming is enabled
@@ -88,8 +94,8 @@ package body Chime is
 
       Previous_File_Time : Time := Value ("2019-01-01 00:00:00");
       -- A time before the hardware existed!
-      Chiming_Enabled : Boolean := False;
-      Chime_List : Chime_Lists := (others => Null_Unbounded_String);
+      Chiming_Enabled : Boolean := True;
+      Chime_List : Chime_Lists := [others => Null_Unbounded_String];
       Current_Volume : Chime_Volumes := Default_Volume;
 
    end Chime_State;
@@ -117,6 +123,9 @@ package body Chime is
    begin -- Raise_Volume
       Chime_State.Raise_Volume;
    end Raise_Volume;
+
+   function Get_Volume return Chime_Volumes is (Chime_State.Get_Volume);
+      --  Returns current volume setting.
 
    procedure Lower_Volume is
 
@@ -151,16 +160,16 @@ package body Chime is
 
          type Header is (Hour, File_Name);
 
-          package Parse_Chime is new DJH.Parse_CSV (Header);
-          use Parse_Chime;
+         package Parse_Chime is new DJH.Parse_CSV (Header);
+         use Parse_Chime;
          
          This_Hour : Hour_Number;
 
       begin -- Read_Chime_List
-         If Exists (Chime_File_Name) and then
+         if Exists (Chime_File_Name) and then
            Modification_Time (Chime_File_Name) /= Previous_File_Time then
            -- Only reread file if it has been changed.
-            Chime_List := (others => Null_Unbounded_String);
+            Chime_List := [others => Null_Unbounded_String];
             Read_Header (Chime_File_Name);
             while Next_Row loop
                This_Hour := Hour_Number'Value (Get_Value (Hour));
@@ -175,8 +184,8 @@ package body Chime is
                end if; --  Exists (Get_Value (File_Name))
             end loop; --  Next_Row
             Put_Event ("Read " & Chime_File_Name & ' ' &
-              Local_Image (Modification_Time (Chime_File_Name)));
-              Previous_File_Time := Modification_Time (Chime_File_Name);
+            Local_Image (Modification_Time (Chime_File_Name)));
+            Previous_File_Time := Modification_Time (Chime_File_Name);
             Close_CSV;
          end if; -- Exists (Chime_File_Name) and then ...
       exception
@@ -203,19 +212,15 @@ package body Chime is
          -- Enables chiming
 
       begin -- Chiming
-         if not Chime_State.Chiming_Enabled then
-            -- Only reread configuration when chiming first enabled because
-            -- reading the external files is potentially time consuming and
-            -- could possibly cause clock to not update display on time!
+         if not Chiming_Enabled then
             if Exists (Configuration_File_Name) then
                Read_Chime_List (Configuration_File_Name, Chime_List);
-               Set_Volume;
                Chiming_Enabled := True;
             else
                Chiming_Enabled := False;
             end if; -- Exists (Configuration_File_Name)
+            Report_Chiming (Chiming_Enabled);
          end if; -- not Chime_State.Chiming_Enabled
-         Report_Chiming (Chiming_Enabled, Current_Volume);
       end Chiming;
 
       procedure Silent is
@@ -224,32 +229,34 @@ package body Chime is
 
       begin -- Silent
          Chiming_Enabled := False;
-         Report_Chiming (Chiming_Enabled, Current_Volume);
+         Report_Chiming (Chiming_Enabled);
       end Silent;
 
       procedure Raise_Volume is
 
-         -- Raises volume 1% for each call
+         -- Raises volume 1% for each call.
 
       begin -- Raise_Volume
          if Current_Volume < Chime_Volumes'Last then
-            Current_Volume := Current_Volume + 1;
+            Current_Volume := @ + 1;
             Set_Volume;
          end if; -- Current_Volume < Chime_Volumes'Last
-         Report_Chiming (Chiming_Enabled, Current_Volume);
       end Raise_Volume;
 
       procedure Lower_Volume is
 
-         -- Lowers volume 1% for each call
+         -- Lowers volume 1% for each call.
 
       begin -- Lower_Volume
          if Current_Volume > Chime_Volumes'First then
-            Current_Volume := Current_Volume - 1;
+            Current_Volume := @ - 1;
             Set_Volume;
          end if; -- Current_Volume > Chime_Volumes'First
-         Report_Chiming (Chiming_Enabled, Current_Volume);
       end Lower_Volume;
+
+      function Get_Volume return Chime_Volumes is (Current_Volume);
+         
+         --  Returns current volume setting.
 
       function Get_Chiming return Boolean is
 
@@ -259,8 +266,8 @@ package body Chime is
          return Chiming_Enabled;
       end Get_Chiming;
 
-      function Read_Chime_List (This_Hour : in Hour_Number) return
-        Commands is
+      function Read_Chime_List (This_Hour : in Hour_Number)
+                                return Commands is
 
          -- Returns command to spawn aplayer;
 
@@ -279,7 +286,7 @@ package body Chime is
 
          One_Hour : constant Duration := 3600.0;
 
-         Now : Time := Clock;
+         Now : constant Time := Clock;
          Year : Year_Number;
          Month : Month_Number;
          Day : Day_Number;
@@ -298,7 +305,7 @@ package body Chime is
            + One_Hour; -- next hour exactly as Time
       end Next_Hour;
 
-      Time_Step : Duration := 120.0;
+      Time_Step : constant Duration := 120.0;
       -- Maximum step in time due to power failure or otherwise before chiming
       -- is suppressed.
       Next_Time : Time;
@@ -307,6 +314,7 @@ package body Chime is
       Command : Commands;
 
    begin -- Strike_Hour
+      Chime_State.Set_Volume; -- Set volume on start up.
       Next_Time := Next_Hour;
       while Run_Chime loop
          select

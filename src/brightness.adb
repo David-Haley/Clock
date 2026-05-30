@@ -2,8 +2,9 @@
 
 -- Author    : David Haley
 -- Created   : 02/07/2019
--- Last Edit : 09/04/2025
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20250409 : Reporting of brightness file modification time.
 -- 20250405 : Minimum_Brightness, Chime_Brightness and Gamma removed to gereral
 -- configuration. DJH.Parse_CSV used to read in corrections. Brightness Records
@@ -17,16 +18,15 @@
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Directories; use Ada.Directories;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
-with Ada.Exceptions; use Ada.Exceptions;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
 with DJH.Parse_CSV;
 
 package body Brightness is
 
    Default_Correction : constant Corrections := 31;
-   File_Name : constant string := "Brightness";
-   Current_Extension : constant string := "csv";
-   Backup_Extension : constant string := "bak";
+   File_Name : constant String := "Brightness";
+   Current_Extension : constant String := "csv";
+   Backup_Extension : constant String := "bak";
    type Brightness_Header is
      (LED_Driver_Name, Output_Number, Dot_Correction_Value);
 
@@ -37,7 +37,7 @@ package body Brightness is
       use Parse_Brightness;
 
       Dot_Correction : Dot_Corrections :=
-        (others => (others => Default_Correction));
+        [others => [others => Default_Correction]];
       LED_Driver : LED_Drivers;
       LED_Channel : LED_Channels;
 
@@ -93,8 +93,8 @@ package body Brightness is
    procedure Write_Brightness_Config (Dot_Correction : in Dot_Corrections) is
       -- Writes dot correction file.
 
-      Temporary_Extension : constant string := "tmp";
-      Delimiter : constant character := ',';
+      Temporary_Extension : constant String := "tmp";
+      Delimiter : constant Character := ',';
 
       Text_File : File_Type;
 
@@ -111,7 +111,7 @@ package body Brightness is
       end loop; -- H in Brightness_Header
       for LED_Driver in LED_Drivers loop
          for LED_Channel in LED_Channels loop
-            Put_Line (Text_File, LED_Driver'img & Delimiter &
+            Put_Line (Text_File, LED_Driver'Img & Delimiter &
                         LED_Channel'Img & Delimiter &
                         Dot_Correction (LED_Driver, LED_Channel)'Img);
          end loop; --  LED_Channel in LED_Channels

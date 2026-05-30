@@ -2,13 +2,12 @@
 -- user interface.
 -- Author    : David Haley
 -- Created   : 25/07/2019
--- Last Edit : 16/01/2022
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20220126 : Version_Mismatch Exception removed.
 -- 20220116 : made generic, chiming controls added.
 -- 20190729 : Repeat_Statue added
-
-with Shared_User_Interface; use Shared_User_Interface;
 
 generic
 

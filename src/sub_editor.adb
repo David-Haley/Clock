@@ -4,7 +4,9 @@
 
 --  Author    : David Haley
 --  Created   : 18/04/2026
---  Last Edit : 19/04/2026
+--  Last Edit : 55/05/2026
+
+--  20260524 : Password retained when modify used. Compiler warnings removed.
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
@@ -13,7 +15,7 @@ with MQTT_Subscription; use MQTT_Subscription;
 
 procedure Sub_Editor is
 
-   Procedure Get_Susbcription (Topic, Broker, User, Password :
+   procedure Get_Susbcription (Topic, Broker, User, Password :
                                out Unbounded_String) is
 
    begin -- Get_Susbcription
@@ -46,7 +48,7 @@ procedure Sub_Editor is
    Topic, Broker, User, Password : Unbounded_String;
    
 begin -- Sub_Editor
-   Put_Line ("IOT_Clock Subscription Editor version 20260419");
+   Put_Line ("IOT_Clock Subscription Editor version 20260524");
    if File_Exists then
       Read_Subscription;
       Put_Line ("Subscription file opened");
@@ -81,7 +83,7 @@ begin -- Sub_Editor
                Put_Line ("Zero length strings not permitted, nothing changed.");
             end if; -- Topic_Exists (To_String (Topic))
          when 'd' | 'D' =>
-            Put_LIne ("Delete Topic, enter topic to be deleted.");
+            Put_Line ("Delete Topic, enter topic to be deleted.");
             Put ("Topic: ");
             Get_Line (Topic);
             if Topic_Exists (To_String (Topic)) then
@@ -93,8 +95,6 @@ begin -- Sub_Editor
             Put_Subscriptions;
          when 'm' | 'M' =>
             Put_Line ("Modify the information stored for a topic.");
-            Put_Line ("Note: if Broker or User values are changed, Password" &
-                      "must be updated");
             Put_Line ("Enter for no change or new value and enter to change.");
             Get_Susbcription (Topic, Broker, User, Password);
             if Topic_Exists (To_String (Topic)) then
@@ -103,6 +103,10 @@ begin -- Sub_Editor
                then
                   Put_Line ("No values entered, nothing changed");
                else
+                  if Length (Password) = 0 then
+                     Password :=
+                       To_Unbounded_String (Get_Password (To_String (Topic)));
+                  end if; -- Length (Password) = 0
                   Modify (To_String (Topic), To_String (Broker),
                           To_String (User), To_String (Password));
                end if; -- Length (Broker) = 0 and Length (User) = 0 and ...
@@ -120,7 +124,7 @@ begin -- Sub_Editor
                   Put_Line ("Passwords match");
                else
                   Put_Line ("Passwords do not match");
-               end if; -- Get_Password (To_String (Topic)) = To_String (Password)
+               end if; -- Get_Password (To_String (Topic)) = To_String ...
             else
                Put_Line ("Topic not found, password connot be checked.");
             end if; -- Topic_Exists (To_String (Topic))

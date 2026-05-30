@@ -1,0 +1,8 @@
+library project Lib_GNATCOLL_minimal is
+   for Languages use ("Ada", "C");
+   for Source_Dirs use ("../gnatcoll-core/minimal/src");
+   for Library_Dir use "../gnatcoll-core/minimal/lib/gnatcoll_core/static";
+   for Library_Kind use "static";
+   for Library_Name use "gnatcoll_minimal";
+   for Externally_Built use "true";
+end  Lib_GNATCOLL_minimal;

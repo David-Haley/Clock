@@ -1,8 +1,9 @@
 -- Test program for the clock hardware.
 -- Author    : David Haley
 -- Created   : 07/07/2019
--- Last Edit : 06/05/2022
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed
 -- 20250406 : updated to reflect chanhes to Brightness.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
@@ -18,13 +19,12 @@ with Ada.Strings.Maps; use Ada.Strings.Maps;
 with Ada.Strings.Maps.Constants; use Ada.Strings.Maps.Constants;
 with Ada.Real_Time; use Ada.Real_Time;
 with GNAT.OS_Lib; use GNAT.OS_Lib;
-with ANSI_console; use ANSI_console;
+with ANSI_Console; use ANSI_Console;
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with LED_Declarations; use LED_Declarations;
 with Clock_Driver; use Clock_Driver;
 with Brightness; use Brightness;
 with RPi_GPIO; use RPi_GPIO;
-with TLC5940;
 
 procedure Test_Clock is
 
@@ -38,18 +38,18 @@ procedure Test_Clock is
 
    procedure Test_Sound is
 
-      Sound_Command : String := "/usr/bin/aplay -q";
+      Sound_Command : constant String := "/usr/bin/aplay -q";
       -- full path required does not do environment search
 
       subtype Sound_Indices is Positive range 1 .. 16#a#;
 
       subtype Sound_File_Names is String (1..9);
 
-      Sound_File_Name : array (Sound_Indices) of Sound_File_Names :=
-        ("00020.wav", "00050.wav",
+      Sound_File_Name : constant array (Sound_Indices) of Sound_File_Names :=
+        ["00020.wav", "00050.wav",
          "00100.wav", "00200.wav", "00500.wav",
          "01000.wav", "02000.wav", "05000.wav",
-         "10000.wav", "20000.wav");
+         "10000.wav", "20000.wav"];
 
       Test_Requested : Character;
 
@@ -73,12 +73,14 @@ procedure Test_Clock is
          Put ("Sound Test? ");
          Get (Test_Requested);
          exit when Test_Requested = '0';
-         declare
+         pragma Warnings (Off, "-gnatwm");
+         --  Supress warning related to Exit_Stattus not being used
+         declare -- Spawn declaration block
             Sound_Index : Sound_Indices;
             Exit_Status : Integer;
             Arguments : Argument_List_Access;
             Last : Natural;
-         begin -- convert Test Request
+         begin -- Spawn declaration block
             Hex_Number (4) := Test_Requested;
             Sound_Indices_IO.Get (Hex_Number, Sound_Index, Last);
             Arguments :=
@@ -92,7 +94,8 @@ procedure Test_Clock is
                Goto_XY (X_Pos'First, Y_Pos'Last);
                Put ("Illegal Test Request : " & Test_Requested);
                delay 3.0;
-         end; -- convert Test Request
+         end; -- Spawn declaration block
+         pragma Warnings (On, "-gnatwm");
       end loop; -- process one test request
    end Test_Sound;
 
@@ -221,7 +224,7 @@ procedure Test_Clock is
                Test_Requested := Get_Test (LED_Column, "LED? ");
                exit when Test_Requested = 'q' or Test_Requested = 'Q';
                if Is_In (Test_Requested, Hexadecimal_Digit_Set) then
-                  Current_Led := LED_Channels'Value ("16#" & Test_Requested &
+                  Current_LED := LED_Channels'Value ("16#" & Test_Requested &
                                                        "#");
                   Put_Message (LED_Column, "LED: " & Test_Requested);
                   Goto_XY (Test_Column, 1);
@@ -264,7 +267,7 @@ procedure Test_Clock is
       end loop; -- Driver Selection
    end Test_LED;
 
-   Task body Cycle_GPIO is
+   task body Cycle_GPIO is
 
       Toggle_Time : constant Time_Span := Milliseconds (2);
       Toggling : Boolean := False;
@@ -345,9 +348,9 @@ begin -- Test_Clock
       Goto_XY (X_Pos'First, Y_Pos'First);
       Put_Line ("Clock Hardware Test version 20250406 (Main Menu)");
       Put_Line ("0: End Tests");
-      Put_line ("1: Test Sound");
-      Put_line ("2: Test LEDs");
-      Put_line ("3: Test GPOI");
+      Put_Line ("1: Test Sound");
+      Put_Line ("2: Test LEDs");
+      Put_Line ("3: Test GPOI");
       Put ("Test? ");
       Get (Test_Requested);
       case Test_Requested is

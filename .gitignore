@@ -1,7 +1,6 @@
 # Object file directory
 obj/
 obj_sim/
-
 Test_Area/
 
 # Clock configurations

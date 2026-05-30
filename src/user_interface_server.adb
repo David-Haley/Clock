@@ -3,8 +3,10 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 15/04/2026
+-- Last Edit : 28/05/2026
 
+--  20260528 : Removal of circular elaboration.
+--  20260526 : Compiler warnings removed.
 --  20260415 : More elegent termination provided. UI version reporting
 --  corrected where there ie a mismatch between the server and client.
 -- 20250511 : Provision for multiple simulated sweep hand modes.
@@ -25,15 +27,10 @@ with Ada.Streams; use Ada.Streams;
 with Interfaces; use Interfaces;
 with GNAT.Sockets; use GNAT.Sockets;
 with DJH.Events_and_Errors; use DJH.Events_and_Errors;
-with Clock_Driver; use Clock_Driver;
-with Shared_User_Interface; use Shared_User_Interface;
-with Secondary_Display; use Secondary_Display;
 with Chime; use Chime;
 with General_Configuration; use General_Configuration;
 
 package body User_Interface_Server is
-
-   use Clock_LEDs;
 
    protected UI_Data is
 
@@ -41,9 +38,11 @@ package body User_Interface_Server is
       -- Returns true if chiming is turned on in UI, defaults to true on
       -- startup.
 
-      procedure Report_Chiming (Chiming_Enabled : in Boolean;
-                                Chime_Volume : in Chime_Volumes);
+      procedure Report_Chiming (Chiming_Enabled : in Boolean);
       -- Provides for reporting of current chime state to user interface.
+
+      procedure Report_Volume (Chime_Volume : in Chime_Volumes);
+      --  Used internally to keep track of volume setting
 
       procedure Toggle_Chime;
       -- Inverts the current state of Chime_Toggle.
@@ -82,17 +81,15 @@ package body User_Interface_Server is
       -- Returns true if chiming is turned on in UI, defaults to true on
       --startup.
 
-   procedure Report_Chiming (Chiming_Enabled : in Boolean;
-                             Chime_Volume : in Chime_Volumes) is
+   procedure Report_Chiming (Chiming_Enabled : in Boolean) is
 
       -- Provides for reporting of current chime state to user interface.
 
    begin -- Report_Chiming
-      UI_Data.Report_Chiming (Chiming_Enabled,Chime_Volume);
+      UI_Data.Report_Chiming (Chiming_Enabled);
    end Report_Chiming;
 
-
-    procedure Report_Time (Current_Time : in Time) is
+   procedure Report_Time (Current_Time : in Time) is
       -- Provides for reporting of time to the User Interface.
 
    begin -- Primary_Time
@@ -131,9 +128,8 @@ package body User_Interface_Server is
    task body UI_Server is
 
       RX_Socket, TX_Socket : Socket_Type;
-      Server_Address : Sock_Addr_Type := (Family => Family_Inet,
-                                          Addr => Any_Inet_Addr,
-                                          Port => Request_Port);
+      Server_Address : constant Sock_Addr_Type :=
+        (Family => Family_Inet, Addr => Any_Inet_Addr, Port => Request_Port);
       Client_Address : Sock_Addr_Type;
       Request_Record : Request_Records;
       RX_Buffer : Request_Buffers;
@@ -148,6 +144,7 @@ package body User_Interface_Server is
 
    begin -- UI_Server
       UI_Data.Report_Clock_Version (Clock_Version);
+      UI_Data.Report_Volume (Get_Volume); -- Get volume from Chime
       Create_Socket (RX_Socket, Family_Inet, Socket_Datagram);
       Set_Socket_Option (RX_Socket, Socket_Level, (Receive_Timeout, 3.0));
       Bind_Socket (RX_Socket, Server_Address);
@@ -172,8 +169,12 @@ package body User_Interface_Server is
                      UI_Data.Toggle_Chime;
                   when Volume_Up =>
                      Raise_Volume;
+                     UI_Data.Report_Volume (Get_Volume);
+                     --  Update volume from Chime
                   when Volume_Down =>
                      Lower_Volume;
+                     UI_Data.Report_Volume (Get_Volume);
+                     --  Updete volume from Chime
                   when Cycle_Sweep =>
                      Cycle_Sweep_Mode;
                   when Volume_Test =>
@@ -194,8 +195,8 @@ package body User_Interface_Server is
                   Clock_Status := UI_Data.Get_Clock_Status;
                   --  Default values for Request and Diagnostic_Toggle reported
                end if; -- Request_Record.User_Interface_Version ...
-               --  Unconditionally reply so that any version mismatch is reported
-               --  to client.
+               --  Unconditionally reply so that any version mismatch is
+               --  reported to client.
                Send_Socket (TX_Socket, Status_TX_Buffer, Last, Client_Address);
             end if; -- Last > 0
          end select;
@@ -214,15 +215,21 @@ package body User_Interface_Server is
          -- Returns true if chiming is turned on in UI, defaults to true on
          --startup.
 
-      procedure Report_Chiming (Chiming_Enabled : in Boolean;
-                                Chime_Volume : in Chime_Volumes) is
+      procedure Report_Chiming (Chiming_Enabled : in Boolean) is
 
          -- Provides for reporting of current chime state to user interface.
 
       begin -- Report_Chiming
          UI_Data.Clock_Status.Chime_Enabled := Chiming_Enabled;
-         UI_Data.Clock_Status.Chime_Volume := Chime_Volume;
       end Report_Chiming;
+
+      procedure Report_Volume (Chime_Volume : in Chime_Volumes) is
+
+      --  Used internally to keep track of volume settin
+
+      begin -- Report_Volume
+         UI_Data.Clock_Status.Chime_Volume := Chime_Volume;
+      end Report_Volume;
 
       procedure Toggle_Chime is
 

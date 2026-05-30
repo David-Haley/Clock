@@ -3,8 +3,9 @@
 
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 10/05/2025
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20250510 : Provision for multiple simulated sweep hand modes.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types. Stop_Clock removed.
@@ -17,7 +18,6 @@
 -- 20180726 : Dependency on Secondary_Display removed to prevent instantiation
 -- of TLC5940 in Clock_UI
 
-with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Streams; use Ada.Streams;
 with Ada.Calendar; use Ada.Calendar;
 with GNAT.Sockets; use GNAT.Sockets;
@@ -55,8 +55,8 @@ package Shared_User_Interface is
       Chime_Toggle : Boolean := True;
       Chime_Volume : Chime_Volumes := Chime_Volumes'First;
       Ambient_Light, AL_Test_Value : Greyscales := Greyscales'First;
-      Current_Item : UI_Strings := (others => ' ');
-      LED_Array : LED_Arrays := (others => (others => False));
+      Current_Item : UI_Strings := [others => ' '];
+      LED_Array : LED_Arrays := [others => [others => False]];
    end record; -- Status_Records
    -- All but Current_Time initialised to ensure legal values for Update_Screen
    -- in User_Interface_Client

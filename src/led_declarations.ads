@@ -1,8 +1,10 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 12/04/2025
+-- Last Edit : 25/05/2025
 
+--  20260525 : Display of non scrolling text sourced from a MQTT broker added.
+--  Compiler warnings removed
 --  20260414 : Termination after unhandled exceptions provided. Display
 --  blanked during normal termination;
 --  20260412 : Enhanced exception management in Secondary_Display package.
@@ -47,13 +49,13 @@
 -- 20190715 : Segment declaretions corrected 6 for swgment g.
 -- 20190716 : Instantion of Clock_LEDs moved here. Digit_Record added
 
-With Ada.Text_IO; use Ada.Text_IO;
+with Ada.Text_IO; use Ada.Text_IO;
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20250414";
+   Clock_Version : constant Version_String := "20260530";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,
@@ -88,13 +90,13 @@ package LED_Declarations is
    type Display_Arrays is array (Display_Digits) of Digit_Record;
 
    Marker_Array : constant Marker_Arrays
-     := (Marker_00 => (Sweep_45_59, 15),
+     := [Marker_00 => (Sweep_45_59, 15),
          Marker_15 => (Sweep_00_14, 15),
          Marker_30 => (Sweep_15_29, 15),
-         Marker_45 => (Sweep_30_44, 15));
+         Marker_45 => (Sweep_30_44, 15)];
 
    Sweep_Array : constant Sweep_Arrays
-     := (00 => (Sweep_00_14, 00), 01 => (Sweep_00_14, 01),
+     := [00 => (Sweep_00_14, 00), 01 => (Sweep_00_14, 01),
          02 => (Sweep_00_14, 02), 03 => (Sweep_00_14, 03),
          04 => (Sweep_00_14, 04), 05 => (Sweep_00_14, 05),
          06 => (Sweep_00_14, 06), 07 => (Sweep_00_14, 07),
@@ -125,23 +127,23 @@ package LED_Declarations is
          53 => (Sweep_45_59, 08), 54 => (Sweep_45_59, 09),
          55 => (Sweep_45_59, 10), 56 => (Sweep_45_59, 11),
          57 => (Sweep_45_59, 12), 58 => (Sweep_45_59, 13),
-         59 => (Sweep_45_59, 14));
+         59 => (Sweep_45_59, 14)];
 
    Display_Array : constant Display_Arrays :=
-     (Tens_Hours => (Hours_Drv, (0, 1, 2, 3, 4, 5, 6, 7)),
-      Units_Hours => (Hours_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
-      Tens_Minutes => (Minutes_Drv, (0, 1, 2, 3, 4, 5, 6, 7)),
-      Units_Minutes => (Minutes_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
-      Tens_Seconds => (Seconds_Drv, (0, 1, 2, 3, 4, 5, 6, 7)),
-      Units_Seconds => (Seconds_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
+     [Tens_Hours => (Hours_Drv, [0, 1, 2, 3, 4, 5, 6, 7]),
+      Units_Hours => (Hours_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
+      Tens_Minutes => (Minutes_Drv, [0, 1, 2, 3, 4, 5, 6, 7]),
+      Units_Minutes => (Minutes_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
+      Tens_Seconds => (Seconds_Drv, [0, 1, 2, 3, 4, 5, 6, 7]),
+      Units_Seconds => (Seconds_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
       -- n.b. The DP is not connected, output 15 is used by the auto
       -- brightness system.
-      Tens_Days => (Days_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
-      Units_Days => (Days_Drv, (0, 1, 2, 3, 4, 5, 6, 7)),
-      Tens_Months => (Months_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
-      Units_Months => (Months_Drv, (0, 1, 2, 3, 4, 5, 6, 7)),
-      Tens_Years =>  (Years_Drv, (8, 9, 10, 11, 12, 13, 14, 15)),
-      Units_Years => (Years_Drv, (0, 1, 2, 3, 4, 5, 6, 7)));
+      Tens_Days => (Days_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
+      Units_Days => (Days_Drv, [0, 1, 2, 3, 4, 5, 6, 7]),
+      Tens_Months => (Months_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
+      Units_Months => (Months_Drv, [0, 1, 2, 3, 4, 5, 6, 7]),
+      Tens_Years =>  (Years_Drv, [8, 9, 10, 11, 12, 13, 14, 15]),
+      Units_Years => (Years_Drv, [0, 1, 2, 3, 4, 5, 6, 7])];
 
    AL_Digit : constant Display_Digits := Units_Seconds;
    AL_Driver : constant LED_Drivers := Seconds_Drv;

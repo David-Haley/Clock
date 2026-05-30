@@ -2,8 +2,9 @@
 -- user interface.
 -- Author    : David Haley
 -- Created   : 24/07/2019
--- Last Edit : 14/04/2026
+-- Last Edit : 28/05/2026
 
+--  20260528 : Removal of circular elaboration.
 --  20260414 : More elegent termination provided. UI version reporting
 --  corrected where there ie a mismatch between the server and client.
 -- 20250510 : Provision for multiple simulated sweep hand modes.
@@ -27,8 +28,7 @@ package User_Interface_Server is
    function Get_Chime_Toggle return Boolean;
    -- Returns true if chiming is turned on in UI, defaults to true on startup.
 
-   procedure Report_Chiming (Chiming_Enabled : in Boolean;
-                             Chime_Volume : in Chime_Volumes);
+   procedure Report_Chiming (Chiming_Enabled : in Boolean);
    -- Provides for reporting of current chime state to user interface.
 
    procedure Report_Time (Current_Time : in Time);

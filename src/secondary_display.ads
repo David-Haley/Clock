@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 09/06/2022
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types.
 -- 20220126 : Removed Diagnostic_Strings and Current_Item, no longer required
@@ -31,6 +32,6 @@ package Secondary_Display is
    procedure Resync_Secondary;
    -- causes secondary display to be cleared and restartes at 00 seconds.
 
-   Secondary_Configuration : Exception;
+   Secondary_Configuration : exception;
 
 end Secondary_Display;

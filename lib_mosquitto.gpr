@@ -1,0 +1,6 @@
+library project Lib_Mosquitto is
+   for Library_Dir use "/usr/lib/aarch64-linux-gnu";
+   for Library_Kind use "dynamic";
+   for Library_Name use "mosquitto";
+   for Externally_Built use "true";
+end Lib_Mosquitto;

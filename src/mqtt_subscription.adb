@@ -5,7 +5,9 @@
 
 --  Author    : David Haley
 --  Created   : 17/04/2026
---  Last Edit : 19/04/2026
+--  Last Edit : 25/05/2026
+
+--  Compiler warnings removed.
 
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
@@ -94,7 +96,7 @@ package body MQTT_Subscription is
 
    function Get_Broker (Topic : in Topics) return Brokers is
 
-     --  Returns the broker's host name, from which to subscribe.
+      --  Returns the broker's host name, from which to subscribe.
 
    begin -- Get_Broker
       return To_String (Subscription_Store
@@ -180,7 +182,7 @@ package body MQTT_Subscription is
       while Next_Row loop
          declare -- Subscription declaration block
 
-            Topic : Topics := Get_Value (Topic_H);
+            Topic : constant Topics := Get_Value (Topic_H);
             Subscription : Subscriptions;
 
          begin -- Subscription declaration block
@@ -189,7 +191,7 @@ package body MQTT_Subscription is
             Subscription.Password :=
               To_Unbounded_String (Decode (Get_Value (Password_H),
                 Make_Key (Get_Value (Broker_H), Get_Value (User_H))));
-            insert (Subscription_Store, To_Unbounded_String (Topic),
+            Insert (Subscription_Store, To_Unbounded_String (Topic),
                     Subscription);
          end; -- Subscription declaration block
       end loop; -- Next_Row

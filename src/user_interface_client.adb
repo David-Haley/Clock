@@ -4,8 +4,9 @@
 
 -- Author    : David Haley
 -- Created   : 25/07/2019
--- Last Edit : 11/05/2025
+-- Last Edit : 25/05/2026
 
+--  20260525 : Compiler warnings removed.
 -- 20250511 : Provide for cycling sweep mode.
 -- 20220609 : Port to 64 bit native compiler, Driver_Types renamed to
 -- TLC5940_Driver_Types. User shutdown removed.
@@ -25,25 +26,23 @@ with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Calendar; use Ada.Calendar;
 with Ada.Calendar.Time_Zones; use Ada.Calendar.Time_Zones;
 with Ada.Calendar.Formatting; use Ada.Calendar.Formatting;
-with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Streams; use Ada.Streams;
 with Interfaces; use Interfaces;
 with GNAT.Sockets; use GNAT.Sockets;
-with ANSI_Console; use ANSI_console;
+with ANSI_Console; use ANSI_Console;
 with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 with LED_Declarations; use LED_Declarations;
 with Shared_User_Interface; use Shared_User_Interface;
 
 package body User_Interface_Client is
 
-   Server_Address : Sock_Addr_Type := (Family => Family_Inet,
-                                       Addr => Addresses (Get_Host_By_Name
-                                         (Clock_Name), 1),
-                                       Port => Request_Port);
+   Server_Address : constant Sock_Addr_Type :=
+     (Family => Family_Inet,
+      Addr => Addresses (Get_Host_By_Name (Clock_Name), 1),
+      Port => Request_Port);
 
-   Client_Address : Sock_Addr_Type := (Family => Family_Inet,
-                                       Addr => Any_Inet_Addr,
-                                       Port => Response_Port);
+   Client_Address : constant Sock_Addr_Type :=
+     (Family => Family_Inet,Addr => Any_Inet_Addr, Port => Response_Port);
 
    package Boolean_IO is new Ada.Text_IO.Enumeration_IO (Boolean);
 
@@ -117,7 +116,7 @@ package body User_Interface_Client is
 
    begin -- Process_Requests
       accept Start;
-      Create_Socket (Tx_Socket, Family_Inet, Socket_Datagram); -- UDP socket
+      Create_Socket (TX_Socket, Family_Inet, Socket_Datagram); -- UDP socket
       accept RX_Ready;
       Next_Time := Clock; -- deliberatly random sychronisation;
       while Run_Process_Requests loop
@@ -132,13 +131,13 @@ package body User_Interface_Client is
             if Request_Record.Diagnostic_Toggle then
                Next_Time := Next_Time + Diagnostic_Interval;
             else
-               Next_Time := Next_Time + Update_interval;
+               Next_Time := Next_Time + Update_Interval;
             end if; -- Request_Record.Request = Get_Status
          end select;
          Read_Request (Run_Process_Requests, Request_Record);
          Send_Socket (TX_Socket, TX_Buffer, Last, Server_Address);
       end loop; -- Run_Process_Commands
-      Close_Socket (Tx_Socket);
+      Close_Socket (TX_Socket);
       accept Finished;
    end Process_Requests;
 
@@ -167,9 +166,9 @@ package body User_Interface_Client is
               LED_Datum;
 
             LED_Data : constant LED_Data_Arrays :=
-              (
+              [
                Sweep_00_14 =>
-                 (
+                 [
                   16#0# => (13, 00, '-'), -- 00
                   16#1# => (14, 00, '-'), -- 01
                   16#2# => (15, 00, '-'), -- 02
@@ -186,9 +185,9 @@ package body User_Interface_Client is
                   16#D# => (26, 09, '|'), -- 13
                   16#E# => (26, 10, '|'), -- 14
                   16#F# => (25, 11, '*') --  Marker 15
-                 ),  -- Sweep_00_14
+                 ],  -- Sweep_00_14
                Sweep_15_29 =>
-                 (
+                 [
                   16#0# => (26, 11, '|'), -- 15
                   16#1# => (26, 12, '|'), -- 16
                   16#2# => (26, 13, '|'), -- 17
@@ -205,9 +204,9 @@ package body User_Interface_Client is
                   16#D# => (15, 22, '-'), -- 28
                   16#E# => (14, 22, '-'), -- 29
                   16#F# => (13, 21, '*') --  Marker 30
-                 ),  -- Sweep_15_29
+                 ],  -- Sweep_15_29
                Sweep_30_44 =>
-                 (
+                 [
                   16#0# => (13, 22, '-'), -- 30
                   16#1# => (12, 22, '-'), -- 31
                   16#2# => (11, 22, '-'), -- 32
@@ -224,9 +223,9 @@ package body User_Interface_Client is
                   16#D# => (00, 13, '|'), -- 43
                   16#E# => (00, 12, '|'), -- 44
                   16#F# => (01, 11, '*') --  Marker 45
-                 ),  -- Sweep_30_44
+                 ],  -- Sweep_30_44
                Sweep_45_59 =>
-                 (
+                 [
                   16#0# => (00, 11, '|'), -- 45
                   16#1# => (00, 10, '|'), -- 46
                   16#2# => (00, 09, '|'), -- 47
@@ -243,9 +242,9 @@ package body User_Interface_Client is
                   16#D# => (11, 00, '-'), -- 58
                   16#E# => (12, 00, '-'), -- 59
                   16#F# => (13, 01, '*') --  Marker 00
-                 ),  -- Sweep_45_59
+                 ],  -- Sweep_45_59
                Seconds_Drv =>
-                 (
+                 [
                   16#0# => (19, 06, '-'), -- Tens  a
                   16#1# => (20, 07, '|'), -- Tens  b
                   16#2# => (20, 09, '|'), -- Tens  c
@@ -262,9 +261,9 @@ package body User_Interface_Client is
                   16#D# => (22, 07, '|'), -- Units f
                   16#E# => (23, 08, '-'), -- Units g
                   16#F# => (24, 10, ' ') --  Units DP
-                 ),  -- Seconds_Drv
+                 ],  -- Seconds_Drv
                Minutes_Drv =>
-                 (
+                 [
                   16#0# => (11, 06, '-'), -- Tens  a
                   16#1# => (12, 07, '|'), -- Tens  b
                   16#2# => (12, 09, '|'), -- Tens  c
@@ -281,9 +280,9 @@ package body User_Interface_Client is
                   16#D# => (14, 07, '|'), -- Units f
                   16#E# => (15, 08, '-'), -- Units g
                   16#F# => (16, 10, '.') --  Units DP
-                 ),  -- Minutes_Drv
+                 ],  -- Minutes_Drv
                Hours_Drv =>
-                 (
+                 [
                   16#0# => (03, 06, '-'), -- Tens  a
                   16#1# => (04, 07, '|'), -- Tens  b
                   16#2# => (04, 09, '|'), -- Tens  c
@@ -300,9 +299,9 @@ package body User_Interface_Client is
                   16#D# => (06, 07, '|'), -- Units f
                   16#E# => (07, 08, '-'), -- Units g
                   16#F# => (08, 10, '.') --  Units DP
-                 ),  -- Hours_Drv
+                 ],  -- Hours_Drv
                Years_Drv =>
-                 (
+                 [
                   16#0# => (23, 11, '-'), -- Units a
                   16#1# => (24, 12, '|'), -- Units b
                   16#2# => (24, 14, '|'), -- Units c
@@ -319,9 +318,9 @@ package body User_Interface_Client is
                   16#D# => (18, 12, '|'), -- Tens  f
                   16#E# => (19, 13, '-'), -- Tens  g
                   16#F# => (20, 15, '.') --  Tens  DP
-                 ),  -- Years_Drv
+                 ],  -- Years_Drv
                Months_Drv =>
-                 (
+                 [
                   16#0# => (15, 11, '-'), -- Units a
                   16#1# => (16, 12, '|'), -- Units b
                   16#2# => (16, 14, '|'), -- Units c
@@ -338,9 +337,9 @@ package body User_Interface_Client is
                   16#D# => (10, 12, '|'), -- Tens  f
                   16#E# => (11, 13, '-'), -- Tens  gStatus.AL_Test_Value
                   16#F# => (12, 15, '.') --  Tens  DP
-                 ),  -- Months_Drv
+                 ],  -- Months_Drv
                Days_Drv =>
-                 (
+                 [
                   16#0# => (07, 11, '-'), -- Units a
                   16#1# => (08, 12, '|'), -- Units b
                   16#2# => (08, 14, '|'), -- Units c
@@ -357,8 +356,8 @@ package body User_Interface_Client is
                   16#D# => (02, 12, '|'), -- Tens  f
                   16#E# => (03, 13, '-'), -- Tens  g
                   16#F# => (04, 15, '.') --  Tens  DP
-                 )  -- Days_Drv
-              ); -- LED_DataStatus.AL_Test_Value
+                 ]  -- Days_Drv
+              ]; -- LED_DataStatus.AL_Test_Value
 
          begin -- Animate_Clock
             for D in LED_Drivers loop
