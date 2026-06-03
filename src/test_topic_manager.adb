@@ -3,12 +3,13 @@
 
 --  Author    : David Haley
 --  Created   : 08/05/2026
---  Last Edit : 20/05/2026
+--  Last Edit : 03/06/2026
+
+--  20260603: Merged Topic Manager
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with MQTT_Subscription; use MQTT_Subscription;
 with Topic_Manager; use Topic_Manager;
 
 procedure Test_Topic_Manager is
@@ -16,8 +17,7 @@ procedure Test_Topic_Manager is
    Item_Id : Unbounded_String;
    
 begin -- Test_Topic_Manager
-   Put_Line ("Test_Topic_Manager 20260520");
-   Read_Subscription;
+   Put_Line ("Test_Topic_Manager 20260603");
    Read_Topics;
    loop -- Read one Item_Id
       Put ("Item_Id: ");

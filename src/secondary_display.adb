@@ -3,8 +3,9 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 30/05/2025
+-- Last Edit : 03/06/2025
 
+--  20260603: Merged Topic_Manager.
 --  202600530: Reading of MQTT configuration made single shot.
 --  20260525: Display of non scrolling text sourced from a MQTT broker added.
 --  20260414: improved location of errors when exceptions are raised.
@@ -72,8 +73,7 @@ with Clock_Driver; use Clock_Driver;
 pragma Warnings (On, "-gnatwu");
 with Shared_User_Interface; use Shared_User_Interface;
 with User_Interface_Server; use User_Interface_Server;
-with MQTT_Subscription;
-with Topic_Manager;
+with Topic_Manager; use Topic_Manager;
 
 package body Secondary_Display is
 
@@ -529,16 +529,13 @@ package body Secondary_Display is
          Put_Event ("Read " & File_Name & " file time " &
                     Local_Image (Modification_Time (File_Name)));
          Close (Text_File);
-         if not Subscribed then
+         if not Subscribed and then Topic_Manager.File_Exists then
             --  Readinng subscriotion information is one shot
-            if MQTT_Subscription.File_Exists then
-               MQTT_Subscription.Read_Subscription;
-               if Topic_Manager.File_Exists then
-                  Topic_Manager.Read_Topics;
-                  Subscribed := True;
-               end if; -- Topic_Manager.File_Exists
-            end if; -- MQTT_Subscription.File_Exists
-         end if; -- not Subscribed
+            Read_Topics;
+            Subscribed := True;
+            Put_Event ("Read " & Topic_Management_File & " file time " &
+                    Local_Image (Modification_Time (Topic_Management_File)));
+         end if; -- not Subscribed and then Topic_Manager.File_Exists
          Resync_Secondary;
       else
          Blank;

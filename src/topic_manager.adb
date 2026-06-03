@@ -6,18 +6,19 @@
 
 --  Author    : David Haley
 --  Created   : 24/04/2026
---  Last Edit : 24/05/2026
+--  Last Edit : 02/06/2026
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
 with Ada.Strings; use Ada.Strings;
 with Ada.Strings.Fixed; use Ada.Strings.Fixed;
-with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Directories; use Ada.Directories;
+with Ada.Containers.Ordered_Maps;
 with Ada.Containers.Indefinite_Ordered_Maps;
 with Ada.Exceptions; use Ada.Exceptions;
 with Interfaces; use Interfaces;
 with GNATCOLL.JSON; use GNATCOLL.JSON;
+with DJH.One_Time; use DJH.One_Time;
 with MQTT_Client; use MQTT_Client;
 
 package body Topic_Manager is
@@ -39,28 +40,152 @@ package body Topic_Manager is
 
    type Handle_Pointers is access MQTT_Handle;
 
-   -- JSON Field_Names
-   Item_Array_String : constant String := "Item_Array";
-   Item_Id_String : constant String := "Item_Id";
-   Topic_String : constant String := "Topic";
-   Field_String : constant String := "Field";
-   MQTT_Item_Type_String : constant String := "MQTT_Item_Type";
-   Scaling_Factor_String : constant String := "Scaling_Factor";
-   Decimal_Place_String : constant String := "Decimal_Place";
-   Is_Signed_String : constant String := "Is_Signed";
-   True_Text_String : constant String := "True_Text";
-   False_Text_String : constant String := "False_Text";
+   type Subscriptions is record
+      Broker : Brokers := Null_Unbounded_String;
+      User : Users := Null_Unbounded_String;
+      Password : Passwords := Null_Unbounded_String;
+      Handle_Pointer : Handle_Pointers := null;
+   end record; -- Subscriptions
    
    package Item_Stores is new 
      Ada.Containers.Indefinite_Ordered_Maps (MQTT_Item_Ids, Item_Records);
    use Item_Stores;
 
-   package Sub_Stores is new 
-     Ada.Containers.Indefinite_Ordered_Maps (Topics, Handle_Pointers);
-   use Sub_Stores;
+   package Subscription_Stores is new
+     Ada.Containers.Ordered_Maps (Topics, Subscriptions);
+   use Subscription_Stores;
 
+   -- Package global data 
+
+   Subscription_Store : Subscription_Stores.Map :=
+     Subscription_Stores.Empty_Map;
    Item_Store : Item_Stores.Map := Item_Stores.Empty_Map;
-   Sub_Store : Sub_Stores.Map := Sub_Stores.Empty_Map;
+
+   --  Subscription management procedures and functions
+
+   procedure Create_Subscription (Topic : in Topics;
+                                  Broker : in Brokers;
+                                  User : in Users;
+                                  Password : in Passwords) is
+
+      --  Creates a new entry or replaces an existing entry.
+
+      Subscription : Subscriptions;
+
+   begin -- Create_Subscription
+      Subscription := (Broker, User, Password, null);
+      Insert (Subscription_Store, Topic, Subscription);
+   exception
+      when E: others =>
+         raise Subscription_Error with "Create - " &
+           Exception_Message (E);
+   end Create_Subscription;
+
+   procedure Modify_Subscription (Topic : in Topics;
+                     Broker : in Brokers;
+                     User : in Users;
+                     Password : in Passwords) is
+
+      --  Topic must already exist, allows changes to Broker, User and
+      --  Password. Existing value is retained if an empty string is entered,
+      --  otherwise the new value is saved.
+
+      Subscription : Subscriptions;
+
+   begin -- Modify_Subscription
+      Subscription := Subscription_Store (Topic);
+      if Length (Broker) > 0 then
+         Subscription.Broker := Broker;
+      end if; -- Length (Broker) > 0
+      if Length (User) > 0 then
+         Subscription.User := User;
+      end if; -- Length (User) > 0
+      if Length (Password) > 0 then
+         Subscription.Password := Password;
+      end if; -- Length (Password) > 0
+      Subscription_Store (Topic) := Subscription;
+   exception
+      when E: others =>
+         raise Subscription_Error with "Modify - " &
+           Exception_Message (E);
+   end Modify_Subscription;
+
+   procedure Delete_Subscription (Topic : in Topics) is
+
+      --  Deletes the specified topic.
+
+   begin -- Delete_Subscription
+      Delete (Subscription_Store, Topic);
+   exception
+      when E: others =>
+         raise Subscription_Error with "Delete - " &
+           Exception_Message (E);
+   end Delete_Subscription;
+
+   --  Note all Get functions raise a Subscription_Error exception if a
+   --  there is no subscription recorded for that topic.
+
+   function Get_Broker (Topic : in Topics) return Brokers is
+
+      --  Returns the broker's host name, from which to subscribe.
+
+   begin -- Get_Broker
+      return Subscription_Store (Topic).Broker;
+   exception
+      when E: others =>
+         raise Subscription_Error with "Get_Broker - " &
+           Exception_Message (E);
+   end Get_Broker;
+
+   function Get_User (Topic : in Topics) return Users is
+
+      --  Returns the user name to for login.
+
+   begin -- Get_User
+      return Subscription_Store (Topic).User;
+   exception
+      when E: others =>
+         raise Subscription_Error with "Get_User - " &
+           Exception_Message (E);
+   end Get_User;
+
+   function Get_Password (Topic : in Topics) return Passwords is
+
+      -- Returns the password associated with the user.
+
+   begin -- Get_Password
+      return Subscription_Store (Topic).Password;
+   exception
+      when E: others =>
+         raise Subscription_Error with "Get_Password - " &
+           Exception_Message (E);
+   end Get_Password;
+
+   function Topic_Exists (Topic : in Topics) return Boolean is
+
+   --  Returns true if a subscription exists for the topic.
+
+      (Contains (Subscription_Store, Topic));
+
+   procedure Put_Subscriptions is
+
+      --  Lists subscriptions to standard output.
+
+      Delimiter : constant Character := ' ';
+
+   begin -- Put_Subscriptions
+      Put_Line ("List of Topics and Broker details");
+      for T in Iterate (Subscription_Store) loop
+         Put (Key (T) & Delimiter &
+              Element (T).Broker & Delimiter &
+              Element (T).User & Delimiter);
+            if Length (Element(T).Password) > 0 then
+               Put_Line ("<Has Password>");
+            else
+               Put_Line ("<No Password>");
+            end if;
+      end loop; -- T in Iterate (Subscription_Store)
+   end Put_Subscriptions;
 
    --  The create procedures below will overite stored information for the
    --  relevant item if it already exists  
@@ -78,8 +203,8 @@ package body Topic_Manager is
       if Item_Id_Exists (MQTT_Item_Id) then
          Delete_Item  (MQTT_Item_Id);
       end if; -- Item_Id_Exists (MQTT_Item_Id)
-      Item_Record.Topic := To_Unbounded_String (Topic);
-      Item_Record.Field := To_Unbounded_String (Field);
+      Item_Record.Topic := Topic;
+      Item_Record.Field := Field;
       Insert (Item_Store, MQTT_Item_Id, Item_Record);
    end Create_String_Item;
 
@@ -97,8 +222,8 @@ package body Topic_Manager is
       if Item_Id_Exists (MQTT_Item_Id) then
          Delete_Item  (MQTT_Item_Id);
       end if; -- Item_Id_Exists (MQTT_Item_Id)
-      Item_Record.Topic := To_Unbounded_String (Topic);
-      Item_Record.Field := To_Unbounded_String (Field);
+      Item_Record.Topic := Topic;
+      Item_Record.Field := Field;
       Insert (Item_Store, MQTT_Item_Id, Item_Record);
    end Create_Number_Item;
 
@@ -126,8 +251,8 @@ package body Topic_Manager is
       if Item_Id_Exists (MQTT_Item_Id) then
          Delete_Item  (MQTT_Item_Id);
       end if; -- Item_Id_Exists (MQTT_Item_Id)
-      Item_Record.Topic := To_Unbounded_String (Topic);
-      Item_Record.Field := To_Unbounded_String (Field);
+      Item_Record.Topic := Topic;
+      Item_Record.Field := Field;
       Item_Record.Scaling_Factor := Scaling_Factor;
       Item_Record.Decimal_Place := Decimal_Place;
       Item_Record.Is_Signed := Is_Signed;
@@ -137,8 +262,10 @@ package body Topic_Manager is
    procedure Create_Boolean_Item (MQTT_Item_Id : in MQTT_Item_Ids;
                                   Topic : in Topics;
                                   Field : in Fields;
-                                  True_Text : in String := "true";
-                                  False_Text : in String := "false") is
+                                  True_Text : in Unbounded_String :=
+                                   To_Unbounded_String ("true");
+                                  False_Text : in Unbounded_String :=
+                                   To_Unbounded_String ("false")) is
 
       --  Creates a new Boolean_Item defining the topic and the field from which
       --  the Boolean is to be retrieved. True_Text and False_Text define the
@@ -151,10 +278,10 @@ package body Topic_Manager is
       if Item_Id_Exists (MQTT_Item_Id) then
          Delete_Item  (MQTT_Item_Id);
       end if; -- Item_Id_Exists (MQTT_Item_Id)
-      Item_Record.Topic := To_Unbounded_String (Topic);
-      Item_Record.Field := To_Unbounded_String (Field);
-      Item_Record.True_Text := To_Unbounded_String (True_Text);
-      Item_Record.False_Text := To_Unbounded_String (False_Text);
+      Item_Record.Topic := Topic;
+      Item_Record.Field := Field;
+      Item_Record.True_Text := True_Text;
+      Item_Record.False_Text := False_Text;
       Insert (Item_Store, MQTT_Item_Id, Item_Record);
    end Create_Boolean_Item;
 
@@ -190,7 +317,8 @@ package body Topic_Manager is
       Error_07 : constant String := "Emq 07"; -- Parsing failure
 
       function Is_Subscribed (MQTT_Item_Id : in MQTT_Item_Ids;
-                              Sub_Store : in out Sub_Stores.Map)
+                              Subscription_Store :
+                                in out Subscription_Stores.Map)
                               return Boolean is
 
          --  Returns true if the MQTT_Item_Id is already supcribed. If not
@@ -202,25 +330,19 @@ package body Topic_Manager is
 
       begin -- Is_Subscribed
          Result := Item_Id_Exists (MQTT_Item_Id) and then
-           Topic_Exists (To_String (Item_Store (MQTT_Item_Id).Topic));
+           Topic_Exists (Item_Store (MQTT_Item_Id).Topic);
          if Result then
             -- Check subscription
             declare -- Topic Declaration block
-               Topic : constant Topics :=
-                 To_String (Item_Store (MQTT_Item_Id).Topic);
+               Topic : constant Topics := Item_Store (MQTT_Item_Id).Topic;
             begin -- Topic Declaration block
-               if not Contains (Sub_Store, Topic) then
-                  declare -- Handle declaration block
-                     Handle_Pointer : constant Handle_Pointers :=
-                       new MQTT_Handle;
-                  begin -- Handle declaration block
-                     Connect_Rx (Get_Broker (Topic),
-                                 Get_User (Topic),
-                                 Get_Password (Topic),
-                                 Topic,
-                                 Handle_Pointer.all);
-                     Insert (Sub_Store, Topic, Handle_Pointer);
-                  end; -- Handle declaration block
+               if Subscription_Store (Topic).Handle_Pointer = null then
+                  Subscription_Store (Topic).Handle_Pointer := new MQTT_Handle;
+                  Connect_Rx (To_String (Get_Broker (Topic)),
+                              To_String (Get_User (Topic)),
+                              To_String (Get_Password (Topic)),
+                              To_String (Topic),
+                              Subscription_Store (Topic).Handle_Pointer.all);
                end if; -- not Contains (Sub_Store, Topic)
             end; -- Topic Declaration block
          end if; -- not Result
@@ -402,14 +524,14 @@ package body Topic_Manager is
       end Boolean_Item;
 
    begin -- Get_For_Display
-      if Is_Subscribed (MQTT_Item_Id, Sub_Store) and then
-        Is_Connected_Rx (Sub_Store (To_String (Item_Store (MQTT_Item_Id).Topic))
-                         .all)
+      if Is_Subscribed (MQTT_Item_Id, Subscription_Store) and then
+        Is_Connected_Rx (Subscription_Store (Item_Store (MQTT_Item_Id).Topic).
+                         Handle_Pointer.all)
       then
          declare -- JSON_String block
             JSON_String : constant String :=
-              Receive (Sub_Store (To_String (Item_Store (MQTT_Item_Id).Topic))
-                .all);
+              Receive (Subscription_Store (Item_Store (MQTT_Item_Id).Topic).
+                       Handle_Pointer.all);
             Parsed : Read_Result;
             Field : constant String :=
               To_String (Item_Store (MQTT_Item_Id).Field);
@@ -440,7 +562,7 @@ package body Topic_Manager is
          end; -- JSON_String block
       else
          return Error_01;
-      end if; -- Is_Subscribed (MQTT_Item_Id, Sub_Store)
+      end if; -- Is_Subscribed (MQTT_Item_Id, Subscription_Store)
    end Get_For_Display;
 
    procedure List_Items is
@@ -467,7 +589,6 @@ package body Topic_Manager is
       end if; -- Item_Id_Exists (MQTT_Item_Id)
    end Put_Item;
 
-
    function Item_Id_Exists (MQTT_Item_Id : in MQTT_Item_Ids) return Boolean is
 
       --  Returns True if Item_Id has been defined.
@@ -493,18 +614,72 @@ package body Topic_Manager is
       (Exists (Topic_Management_File) and then
         Kind (Topic_Management_File) = Ordinary_File);
 
+   -- JSON Field_Names
+   Broker_String : constant String := "Broker";
+   User_String : constant String := "User";
+   Topic_String : constant String := "Topic";
+   Topic_Array_String : constant String := "Topic_Array";
+   Password_String : constant String := "Password";
+   Item_Array_String : constant String := "Item_Array";
+   Item_Id_String : constant String := "Item_Id";
+   Field_String : constant String := "Field";
+   MQTT_Item_Type_String : constant String := "MQTT_Item_Type";
+   Scaling_Factor_String : constant String := "Scaling_Factor";
+   Decimal_Place_String : constant String := "Decimal_Place";
+   Is_Signed_String : constant String := "Is_Signed";
+   True_Text_String : constant String := "True_Text";
+   False_Text_String : constant String := "False_Text";
+
+   function Make_Key (Broker : in Brokers;
+                      User : in Users) return String is
+
+      Result : Unbounded_String := Null_Unbounded_String;
+      I : Positive := 1;
+
+   begin -- Make_Key(
+      while I <= Length (Broker) or I <= Length (User) loop
+         if I <= Length (Broker) then
+            Result := @ & Element (Broker, I);
+         end if; -- I <= Length (Broker)
+         if I <= Length (User) then
+            Result := @ & Element (User, I);
+         end if; -- I <= Length (User)
+         I := @ + 1;
+      end loop; -- I <= Length (Broker) or I <= Length (User)
+      return To_String (Result);
+   end Make_Key;
+
    procedure Read_Topics is
 
       --  Reads in the an existing configuration file.
 
+      function Decode (Broker : in Brokers;
+                       User : in Users;
+                       Password_Array : in JSON_Array) return Passwords is
+
+         Char_Int : Integer;
+         Encoded_Password : Passwords := Null_Unbounded_String;
+
+      begin -- Decode
+         for I in Natural range 1 .. Length (Password_Array) loop
+            Char_Int := Get (Get (Password_Array, I));
+            Encoded_Password := @ & Character'Val (Char_Int);
+         end loop; -- I in Natural range 1 .. Length (Password_Array)
+         return To_Unbounded_String (Decode (To_String (Encoded_Password),
+           Make_Key (Broker, User)));
+      end Decode;
+
       Parsed : Read_Result;
-      Item_Array : JSON_Array;
+      Topic_Array, Item_Array, Password_Array : JSON_Array;
       Item_Type : MQTT_Item_Types;
+      Topic : Topics;
+      Subscription : Subscriptions;
 
    begin -- Read_Topics
       Parsed := Read_File (Topic_Management_File);
       if Parsed.Success then
-         Item_Array := Get (Parsed.Value, Item_Array_String);
+         Topic_Array := Get (Parsed.Value, Topic_Array_String);
+         Clear (Subscription_Store);
          Clear (Item_Store);
       else
          raise Topic_Error with "Read_Topics error Line:" &
@@ -512,78 +687,121 @@ package body Topic_Manager is
            Parsed.Error.Column'Img & " Message : " &
            Format_Parsing_Error(Parsed.Error);
       end if;
-      for I in Natural range 1 .. Length (Item_Array) loop
-         Item_Type := MQTT_Item_Types'Value (Get (Get (Item_Array, I),
-                                                  MQTT_Item_Type_String));
-         declare -- Item_Record
-            Item_Record : Item_Records (Item_Type);
-            Item_Id : Unbounded_String;
-         begin -- Item_Record
-            Item_Id := Get (Get (Item_Array, I), Item_Id_String);
-            Item_Record.Topic := Get (Get (Item_Array, I), Topic_String);
-            Item_Record.Field := Get (Get (Item_Array, I), Field_String);
-            case Item_Type is
-               when MQTT_String | MQTT_Number =>
-                  null;
-               when  MQTT_U16 | MQTT_U32 =>
-                  Item_Record.Scaling_Factor :=
-                    Get (Get (Item_Array, I), Scaling_Factor_String);
-                  Item_Record.Decimal_Place :=
-                    Get (Get (Item_Array, I), Decimal_Place_String);
-                  Item_Record.Is_Signed :=
-                    Get (Get (Item_Array, I), Is_Signed_String);
-               when MQTT_Boolean =>
-                  Item_Record.True_Text :=
-                    Get (Get (Item_Array, I), True_Text_String);
-                  Item_Record.False_Text :=
-                    Get (Get (Item_Array, I), False_Text_String);
-            end case; -- Item_Type
-            Insert (Item_Store, To_String (Item_Id), Item_Record);
-         end; -- Item_Record;
-      end loop; --  I in Natural range 1 .. Length (Item_Array)
+      for T in Natural range 1 .. Length (Topic_Array) loop
+         Subscription.Broker := Get (Get (Topic_Array, T), Broker_String);
+         Subscription.User := Get (Get (Topic_Array, T), User_String);
+         Password_Array := Get (Get (Topic_Array, T), Password_String);
+         Subscription.Password :=
+           Decode (Subscription.Broker, Subscription.User, Password_Array);
+         Topic := Get (Get (Topic_Array, T), Topic_String);
+         Item_Array := Get (Get (Topic_Array, T), Item_Array_String);
+         Insert (Subscription_Store, Topic, Subscription);
+         for I in Natural range 1 .. Length (Item_Array) loop
+            Item_Type := MQTT_Item_Types'Value (Get (Get (Item_Array, I),
+                                                   MQTT_Item_Type_String));
+            declare -- Item_Record
+               Item_Record : Item_Records (Item_Type);
+               Item_Id : constant MQTT_Item_Ids :=
+                 Get (Get (Item_Array, I), Item_Id_String);
+            begin -- Item_Record
+               Item_Record.Topic := Topic;
+               Item_Record.Field := Get (Get (Item_Array, I), Field_String);
+               case Item_Type is
+                  when MQTT_String | MQTT_Number =>
+                     null;
+                  when  MQTT_U16 | MQTT_U32 =>
+                     Item_Record.Scaling_Factor :=
+                     Get (Get (Item_Array, I), Scaling_Factor_String);
+                     Item_Record.Decimal_Place :=
+                     Get (Get (Item_Array, I), Decimal_Place_String);
+                     Item_Record.Is_Signed :=
+                     Get (Get (Item_Array, I), Is_Signed_String);
+                  when MQTT_Boolean =>
+                     Item_Record.True_Text :=
+                     Get (Get (Item_Array, I), True_Text_String);
+                     Item_Record.False_Text :=
+                     Get (Get (Item_Array, I), False_Text_String);
+               end case; -- Item_Type
+               Insert (Item_Store, Item_Id, Item_Record);
+            end; -- Item_Record;
+         end loop; --  I in Natural range 1 .. Length (Item_Array)
+      end loop; -- T in Natural range 1 .. Length (Topic_Array)
    exception
       when E: others => 
          raise Topic_Error with "Read_Topics - " & Exception_Message (E);
    end Read_Topics;
 
-   procedure Write_Topics is
+   procedure Write_Topics is 
 
       --  Writes a new or over writes an existing configuration file.
 
+      function Encode (Broker : in Brokers;
+                       User : in Users;
+                       Password : in Passwords) return JSON_Array is
+         
+         Key : constant String := Make_Key (Broker, User);
+         Encoded_Password : constant String :=
+           Encode (To_String (Password), Key);
+         Result : JSON_Array := Empty_Array;
+
+      begin -- Encode
+         for I in Positive range 1 .. Encoded_Password'Length loop
+            Append (Result,
+                    Create (Integer (Character'Pos (Encoded_Password (I)))));
+         end loop; -- I in Positive range 1 .. Encoded_Password'Length
+         return Result;
+      end Encode;
+
       Global_JSON : constant JSON_Value := Create_Object;
-      Item_Array : JSON_Array := Empty_Array;
+      Topic_Array, Item_Array : JSON_Array;
       Output_File : File_Type;
+      Topic_JSON : JSON_Value;
 
    begin -- Write_Topics
-      for I in Iterate (Item_Store) loop
-         declare -- Item_JSON
-            Item_JSON : constant JSON_Value := Create_Object; 
-         begin -- Item_JSON
-            Set_Field (Item_JSON, Item_Id_String, Key (I));
-            Set_Field (Item_JSON, Topic_String, Create (Element (I).Topic));
-            Set_Field (Item_JSON, Field_String, Create (Element (I).Field));
-            Set_Field (Item_JSON, MQTT_Item_Type_String,
-              Create (Element (I).MQTT_Item_Type'Img));
-            case Element (I).MQTT_Item_Type is
-               when MQTT_String | MQTT_Number =>
-                  null;
-               when  MQTT_U16 | MQTT_U32 =>
-                  Set_Field (Item_JSON, Scaling_Factor_String,
-                    Create (Element (I).Scaling_Factor));
-                  Set_Field (Item_JSON, Decimal_Place_String,
-                    Create (Element (I).Decimal_Place));
-                  Set_Field (Item_JSON, Is_Signed_String,
-                    Create (Element (I).Is_Signed));
-               when MQTT_Boolean =>
-                  Set_Field (Item_JSON, True_Text_String,
-                     Create (Element (I).True_Text));
-                  Set_Field (Item_JSON, False_Text_String,
-                     Create (Element (I).False_Text));
-            end case; -- Element (I).MQTT_Item_Type
-            Append (Item_Array, Clone (Item_JSON));
-         end; -- Item_JSON
-      end loop; -- I in Iterate (Item_Store)
-      Set_Field (Global_JSON, Item_Array_String, Item_Array);
+      Topic_Array := Empty_Array;
+      for T in Iterate (Subscription_Store) loop
+         Topic_JSON := Create_Object;
+         Set_Field (Topic_JSON, Broker_String, Element (T).Broker);
+         Set_Field (Topic_JSON, User_String, Element (T).User);
+         Set_Field (Topic_JSON, Topic_String, Key (T));
+         Set_Field (Topic_JSON, Password_String,
+                    Encode (Element (T).Broker, Element (T).User,
+                            Element (T).Password));
+         Item_Array := Empty_Array;
+         for I in Iterate (Item_Store) loop
+            if Key (T) = Element(I).Topic then
+               declare -- Item_JSON
+                  Item_JSON : constant JSON_Value := Create_Object; 
+               begin -- Item_JSON
+                  Set_Field (Item_JSON, Item_Id_String, Key (I));
+                  Set_Field (Item_JSON, Field_String,
+                             Create (Element (I).Field));
+                  Set_Field (Item_JSON, MQTT_Item_Type_String,
+                  Create (Element (I).MQTT_Item_Type'Img));
+                  case Element (I).MQTT_Item_Type is
+                     when MQTT_String | MQTT_Number =>
+                        null;
+                     when  MQTT_U16 | MQTT_U32 =>
+                        Set_Field (Item_JSON, Scaling_Factor_String,
+                        Create (Element (I).Scaling_Factor));
+                        Set_Field (Item_JSON, Decimal_Place_String,
+                        Create (Element (I).Decimal_Place));
+                        Set_Field (Item_JSON, Is_Signed_String,
+                        Create (Element (I).Is_Signed));
+                     when MQTT_Boolean =>
+                        Set_Field (Item_JSON, True_Text_String,
+                           Create (Element (I).True_Text));
+                        Set_Field (Item_JSON, False_Text_String,
+                           Create (Element (I).False_Text));
+                  end case; -- Element (I).MQTT_Item_Type
+                  Append (Item_Array, Clone (Item_JSON));
+               end; -- Item_JSON
+               Set_Field (Topic_JSON, Item_Array_String, Item_Array);
+            end if; -- Key (T) = Element(I).Topic
+         end loop; -- I in Iterate (Item_Store)
+         Append (Topic_Array, Clone (Topic_JSON));
+      end loop; -- T in Iterate (Subscription_Store)
+      Set_Field (Global_JSON, Topic_Array_String, Topic_Array);
       Create (Output_File, Out_File, Topic_Management_File);
       Ada.Text_IO.Put (Output_File, Write (Global_JSON, False));
       Close (Output_File);
