@@ -6,7 +6,10 @@
 
 --  Author    : David Haley
 --  Created   : 24/04/2026
---  Last Edit : 02/06/2026
+--  Last Edit : 05/06/2026
+
+--  20260605: Correction of management for signed conversion for MQTT_U16 and
+--  MQTT_U32 items.
 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
@@ -401,7 +404,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_16 and Sign_Bit) /= 0
                then
-                  N_0 := Fixed_0 ((not U_16) - 1);
+                  N_0 := 0.0 - Fixed_0 ((not U_16) + 1);
                else
                   N_0 := Fixed_0 (U_16);
                end if; -- Iten_Store (MQTT_Item_Id).Is_Signed ...
@@ -411,7 +414,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_16 and Sign_Bit) /= 0
                then
-                  N_1 := Fixed_1 ((not U_16) - 1);
+                  N_1 := 0.0 - Fixed_1 ((not U_16) + 1);
                else
                   N_1 := Fixed_1 (U_16);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -421,7 +424,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_16 and Sign_Bit) /= 0
                then
-                  N_2 := Fixed_2 ((not U_16) - 1);
+                  N_2 := 0.0 - Fixed_2 ((not U_16) + 1);
                else
                   N_2 := Fixed_2 (U_16);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -431,7 +434,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_16 and Sign_Bit) /= 0
                then
-                  N_3 := Fixed_3 ((not U_16) - 1);
+                  N_3 := 0.0 - Fixed_3 ((not U_16) + 1);
                else
                   N_3 := Fixed_3 (U_16);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -465,7 +468,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_32 and Sign_Bit) /= 0
                then
-                  N_0:= Fixed_0 ((not U_32) - 1);
+                  N_0:= 0.0 - Fixed_0 ((not U_32) + 1);
                else
                   N_0:= Fixed_0 (U_32);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -475,7 +478,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_32 and Sign_Bit) /= 0
                then
-                  N_1 := Fixed_1 ((not U_32) - 1);
+                  N_1 := 0.0 - Fixed_1 ((not U_32) + 1);
                else
                   N_1 := Fixed_1 (U_32);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -485,7 +488,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_32 and Sign_Bit) /= 0
                then
-                  N_2 := Fixed_2 ((not U_32) - 1);
+                  N_2 := 0.0 - Fixed_2 ((not U_32) + 1);
                else
                   N_2 := Fixed_2 (U_32);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...
@@ -495,7 +498,7 @@ package body Topic_Manager is
                if Item_Store (MQTT_Item_Id).Is_Signed and then
                  (U_32 and Sign_Bit) /= 0
                then
-                  N_3 := Fixed_3 ((not U_32) - 1);
+                  N_3 := 0.0 - Fixed_3 ((not U_32) + 1);
                else
                   N_3 := Fixed_3 (U_32);
                end if; -- Item_Store (MQTT_Item_Id).Is_Signed ...

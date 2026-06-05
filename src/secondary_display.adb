@@ -3,8 +3,10 @@
 -- Step_Display True to update the secondary display contents.
 -- Author    : David Haley
 -- Created   : 17/07/2019
--- Last Edit : 03/06/2025
+-- Last Edit : 05/06/2025
 
+--  20260605: Reporting of configuration file date and time made consistent with
+--  other configuration files.
 --  20260603: Merged Topic_Manager.
 --  202600530: Reading of MQTT configuration made single shot.
 --  20260525: Display of non scrolling text sourced from a MQTT broker added.
@@ -526,14 +528,14 @@ package body Secondary_Display is
             Append (Item_List, Item);
          end loop; -- End_Of_File (Text_File)
          File_Time := Modification_Time (File_Name);
-         Put_Event ("Read " & File_Name & " file time " &
+         Put_Event ("Read " & File_Name & " " &
                     Local_Image (Modification_Time (File_Name)));
          Close (Text_File);
          if not Subscribed and then Topic_Manager.File_Exists then
             --  Readinng subscriotion information is one shot
             Read_Topics;
             Subscribed := True;
-            Put_Event ("Read " & Topic_Management_File & " file time " &
+            Put_Event ("Read " & Topic_Management_File & " " &
                     Local_Image (Modification_Time (Topic_Management_File)));
          end if; -- not Subscribed and then Topic_Manager.File_Exists
          Resync_Secondary;
