@@ -1,16 +1,40 @@
 {
-  "Item_Array": [
+  "Topic_Array": [
     {
-      "Field": "power",
-      "Item_Id": "PV_Power",
-      "MQTT_Item_Type": "MQTT_STRING",
-      "Topic": "PV_Data"
-    },
-    {
-      "Field": "daily_yeild",
-      "Item_Id": "PV_Yeild",
-      "MQTT_Item_Type": "MQTT_STRING",
-      "Topic": "PV_Data"
+      "Broker": "Domain-Controller",
+      "Item_Array": [
+        {
+          "Field": "power",
+          "Item_Id": "PV_Power",
+          "MQTT_Item_Type": "MQTT_STRING"
+        },
+        {
+          "Field": "daily_yeild",
+          "Item_Id": "PV_Yeild",
+          "MQTT_Item_Type": "MQTT_STRING"
+        }
+      ],
+      "Password": [
+        123,
+        189,
+        210,
+        168,
+        221,
+        219,
+        115,
+        82,
+        123,
+        165,
+        160,
+        171,
+        77,
+        100,
+        103,
+        96,
+        179
+      ],
+      "Topic": "PV_Data",
+      "User": "WebBox_Sub"
     }
   ]
 }
