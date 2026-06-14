@@ -1,7 +1,7 @@
-with "libgpiod.gpr";
-with "lib_mosquitto.gpr";
-with "lib_gnatcoll.gpr";
-with "lib_gnatcoll_minimal.gpr";
+with "../Pi_Common/lib_gpiod.gpr";
+with "../Pi_Common/lib_mosquitto.gpr";
+with "../gnatcoll/lib_gnatcoll.gpr";
+with "../gnatcoll/lib_gnatcoll_minimal.gpr";
 
 project Iot_Clock is
 
