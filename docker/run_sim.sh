@@ -59,6 +59,7 @@ echo ""
 docker run --rm \
     --name "$CONTAINER_NAME" \
     --platform linux/arm64 \
+    --dns-search 19bluebell4161.net.au \
     -v "$PARENT:/build" \
     -w /build/Clock \
     -p 8765:8765/tcp \

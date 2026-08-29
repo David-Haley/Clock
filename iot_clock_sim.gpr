@@ -5,6 +5,10 @@
 -- Build:  gprbuild -P iot_clock_sim.gpr -j0
 -- Run:    docker run --rm -p 50003:50003/udp -p 50004:50004/udp ... ./obj_sim/iot_clock
 
+with "../Pi_Common/lib_gnatcoll.gpr";
+with "../Pi_Common/lib_gnatcoll_minimal.gpr";
+with "../Pi_Common/lib_mosquitto.gpr";
+
 project Iot_Clock_Sim is
 
    -- Pi_Common_C/src is included for Ada .ads binding files (gpio_driver_h,
@@ -29,7 +33,8 @@ project Iot_Clock_Sim is
    end Naming;
 
    for Object_Dir use "obj_sim";
-   for Main use ("iot_clock.adb");
+   for Main use ("iot_clock.adb", "topic_editor.adb", "test_topic_manager.adb",
+     "test_topic_management.adb");
    for Languages use ("Ada", "C");
 
    package Compiler is

@@ -1,8 +1,0 @@
-Static_Text, 5, date
-DDMMYY, 10
-Static_Text, 5,  nz
-Time_Zone, 10, 2026-04-04 14:00:00, 720, 2026-09-26 14:00:00, 780, 2027-04-04 14:00:00, 720, 2027-09-26 14:00:00, 780, 2028-04-02 14:00:00, 720
-Static_Text, 5,PV Pwr
-MQTT, 10,PV_Power
-Static_Text, 5,PV Yld
-MQTT, 10,PV_Yeild

@@ -477,8 +477,7 @@ package body Secondary_Display is
             begin -- Item declaration block
                Item.Item_Number := I;
                Item.Item_Duration :=
-                 Item_Durations'Value (Get (Get (Item_Array, I),
-                                            Duration_String));
+                 Get (Get (Item_Array, I), Duration_String);
                case Item_Type is
                when Blank | DDMMYY | MMDDYY | YYMMDD =>
                   null;
@@ -613,6 +612,7 @@ package body Secondary_Display is
                   Blank;
                   if First_Time then
                      Text_Display_Start := 1;
+                     Display_Start := Secondary_Digits'Last;
                      if Length (Element (Item_Cursor).Text) = 0 then
                         raise Secondary_Configuration with
                           "Missing scrolling text";
