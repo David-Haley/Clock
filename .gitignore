@@ -9,5 +9,7 @@ Error_Log.txt
 Event_Log.txt
 General_Configuration.csv
 Secondary.csv
+Topic_Management.json
+Secondary.json
 volume_test.wav
 

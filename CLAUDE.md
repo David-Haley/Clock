@@ -10,6 +10,7 @@ IOT_Clock is an Ada 2022 application for a Raspberry Pi 3B-based digital clock w
 - Automatic brightness control (4095:1 range, 64 levels of per-LED dot correction)
 - Hourly chiming via arbitrary `.wav` files (`aplay` + `amixer`)
 - Distributed user interface via TCP sockets
+- MQTT subscriptions (via `libmosquitto`) feeding live values into the secondary display
 
 ## Build Commands
 
@@ -24,6 +25,9 @@ gprbuild -P iot_clock.gpr iot_clock.adb
 gprbuild -P iot_clock.gpr clock_ui.adb
 gprbuild -P iot_clock.gpr test_clock.adb
 gprbuild -P iot_clock.gpr test_chime.adb
+gprbuild -P iot_clock.gpr topic_editor.adb
+gprbuild -P iot_clock.gpr test_topic_manager.adb
+gprbuild -P iot_clock.gpr test_topic_management.adb
 
 # Clean build artifacts
 gprclean -P iot_clock.gpr
@@ -38,8 +42,12 @@ To release GPIO pins on exit: `release_gpio.sh`
 The `.gpr` file references three sibling repositories that must exist alongside this one:
 
 - `../DJH/src` — `Events_and_Errors` (logging) and `Parse_CSV` (CSV config parsing)
-- `../Pi_Common/src` — Ada drivers: `RPi_GPIO`, `TLC5940`, `Linux_Signals`
+- `../Pi_Common/src` — Ada drivers: `RPi_GPIO`, `TLC5940`, `Linux_Signals`, `MQTT_Client` (libmosquitto binding)
 - `../Pi_Common_C/src` — C SPI interface for TLC5940 chips
+
+Both `iot_clock.gpr` and `iot_clock_sim.gpr` also pull in `../Pi_Common/lib_gnatcoll.gpr`,
+`../Pi_Common/lib_gnatcoll_minimal.gpr` (JSON parsing, via `GNATCOLL.JSON`) and
+`../Pi_Common/lib_mosquitto.gpr` (MQTT client library, requires `libmosquitto-dev`).
 
 ## Architecture
 
@@ -48,17 +56,19 @@ Runs at 1 Hz for second-level time updates, with an inner loop at 8/16/60 Hz dep
 
 ### Hardware Abstraction
 - **`src/clock_driver.ads`** — Instantiates the generic `TLC5940` driver for 10 chips (160 channels total). This is the single point of hardware coupling.
-- **`src/led_declarations.ads`** — Maps logical display elements (digits, sweep LEDs, markers, ambient light sensor) to specific TLC5940 driver/channel indices. Change hardware wiring here.
+- **`src/led_declarations.ads`** — Maps logical display elements (digits, sweep LEDs, markers, ambient light sensor) to specific TLC5940 driver/channel indices. Change hardware wiring here. Note: `Units_Seconds`'s decimal-point channel (`Seconds_Drv`, channel 15) has no LED on the target hardware — it's repurposed as the `AL_Channel` ambient light sensor input, so it's the one digit with no decimal point (see the comment on `Units_Seconds` in `Display_Array`, and `web/index.html`'s `buildDigit(..., hasDp)`, which omits the simulator's dp graphic for that digit accordingly).
 
 ### Display System
 - **Primary display**: Hours:Minutes:Seconds on the first six digits
-- **Secondary display** (`src/secondary_display.adb`): Cycles through day/month/year; also shows configuration on startup
+- **Secondary display** (`src/secondary_display.adb`): Cycles through a configurable list of items — date formats, a second time zone, static/scrolling text, arbitrary segments, and live `MQTT` values (via `Topic_Manager.Get_For_Display`); also shows configuration on startup
 - Segments are driven via `Segment_Array` arrays defined in `led_declarations.ads`
 
-### Configuration (CSV files, read at startup)
-- **General config** (`src/general_configuration.adb`): minimum brightness, chiming threshold, sweep mode, gamma correction, default volume, paths to `aplay`/`amixer`
-- **Brightness/dot correction** (`src/brightness.adb`): per-LED calibration factors (160 values, 10 drivers × 16 channels)
-- **Chime schedule** (`src/chime.adb`): up to 24 entries mapping hours to `.wav` file paths; missing entries silence that hour
+### Configuration (read at startup)
+- **General config** (`src/general_configuration.adb`, CSV): minimum brightness, chiming threshold, sweep mode, gamma correction, default volume, paths to `aplay`/`amixer`
+- **Brightness/dot correction** (`src/brightness.adb`, CSV): per-LED calibration factors (160 values, 10 drivers × 16 channels)
+- **Chime schedule** (`src/chime.adb`, CSV): up to 24 entries mapping hours to `.wav` file paths; missing entries silence that hour
+- **Secondary display items** (`src/secondary_display.adb`, JSON — `Secondary.json`): ordered list of display items, parsed with `GNATCOLL.JSON`. Each item has an `Item_Type` (`DDMMYY`/`MMDDYY`/`YYMMDD`/`Time_Zone`/`Static_Text`/`Scrolling_Text`/`MQTT`/`Arbitrary`/`Blank`) and a `Duration`, plus type-specific fields (e.g. `Text`, `Item_Id`, `Change` array of UTC daylight-saving transitions, or a `Digit_List` of explicit segments). Re-read automatically when the file's modification time changes. Replaced the older `Secondary.csv` format.
+- **Topic management** (`src/topic_manager.ads/.adb`, JSON — `Topic_Management.json`): MQTT broker subscriptions (topic/broker/user/password, password lightly encrypted) and the mapping from `MQTT_Item_Id` to a topic+field with formatting rules (string, number, scaled unsigned 16/32-bit, boolean). Read once at startup by `Secondary_Display` when the file is present. Edited interactively with `topic_editor.adb` (build target `topic_editor`), not by hand.
 
 ### User Interface (TCP IPC)
 - **Server** (`src/user_interface_server.adb`): runs inside the clock process, listens on ports 50003/50004
@@ -73,7 +83,14 @@ Runs at 1 Hz for second-level time updates, with an inner loop at 8/16/60 Hz dep
 
 A Docker-based simulator runs the clock binary with stub C drivers (no real GPIO/SPI).
 Uses `iot_clock_sim.gpr` (not `iot_clock.gpr`) which overrides `Linux_Signals` with no-op
-stubs from `src_sim/` to avoid GNAT interrupt-priority elaboration issues.
+stubs from `src_sim/` to avoid GNAT interrupt-priority elaboration issues. It also builds
+`topic_editor`, `test_topic_manager` and `test_topic_management` alongside `iot_clock`. The
+image installs `libmosquitto-dev` for the MQTT client library, and `run_sim.sh` passes
+`--dns-search` so an MQTT broker referenced by short hostname in `Topic_Management.json`
+resolves from inside the container. The container has no timezone of its own — the primary
+display uses `Ada.Calendar.Time_Zones.UTC_Time_Offset`, which follows the `TZ` env var —
+so `run_sim.sh` auto-detects the host's timezone (`$TZ` / `/etc/timezone` / `/etc/localtime`)
+and passes it as `-e TZ=...`; override with `TZ=Region/City ./docker/run_sim.sh`.
 
 ```bash
 # Build image and run (WebSocket bridge on ws://localhost:8765)
@@ -91,14 +108,15 @@ is exposed. Ada logs go to `Event_Log.txt` and `Error_Log.txt` in the Clock dire
 
 ## Required Config Files
 
-These CSV files must exist in the working directory (Clock/) before running the binary.
-Missing files cause Ada tasks to survive but the main loop to silently never start:
+These files must exist in the working directory (Clock/) before running the binary.
+Missing required files cause Ada tasks to survive but the main loop to silently never start:
 - `General_Configuration.csv` — minimum brightness, sweep mode, gamma, volume, aplay paths
 - `Brightness.csv` — dot correction per LED (160 rows: 10 drivers × 16 channels); default
   correction value is 31. **Missing this file raises during the declaration section of
   `IOT_Clock`, bypassing its exception handler** — child tasks live but main loop never runs.
 - `Chimes.csv` — optional; missing it disables chiming
-- `Secondary.csv` — optional; missing it shows blank secondary display
+- `Secondary.json` — optional; missing it shows blank secondary display
+- `Topic_Management.json` — optional; missing it disables MQTT subscriptions (any `MQTT` items in `Secondary.json` will error and be skipped)
 
 ## Debugging Tips
 

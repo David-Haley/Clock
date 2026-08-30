@@ -4,6 +4,40 @@
       "Broker": "Domain-Controller",
       "Item_Array": [
         {
+          "Field": "Tank_Temperature",
+          "Item_Id": "Hot_Water_Temperature",
+          "MQTT_Item_Type": "MQTT_STRING"
+        }
+      ],
+      "Password": [
+        109,
+        120,
+        196,
+        175,
+        177,
+        193,
+        209,
+        195,
+        213,
+        85,
+        126,
+        126,
+        66,
+        161,
+        85,
+        164,
+        116,
+        191,
+        228,
+        215
+      ],
+      "Topic": "Hot_Water_Status",
+      "User": "IOT_Clock"
+    },
+    {
+      "Broker": "Domain-Controller",
+      "Item_Array": [
+        {
           "Field": "power",
           "Item_Id": "PV_Power",
           "MQTT_Item_Type": "MQTT_STRING"
@@ -15,26 +49,29 @@
         }
       ],
       "Password": [
-        123,
-        189,
-        210,
-        168,
-        221,
-        219,
-        115,
-        82,
-        123,
-        165,
-        160,
-        171,
-        77,
-        100,
-        103,
-        96,
-        179
+        109,
+        120,
+        196,
+        175,
+        177,
+        193,
+        209,
+        195,
+        213,
+        85,
+        126,
+        126,
+        66,
+        161,
+        85,
+        164,
+        116,
+        191,
+        228,
+        215
       ],
       "Topic": "PV_Data",
-      "User": "WebBox_Sub"
+      "User": "IOT_Clock"
     }
   ]
 }

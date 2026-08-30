@@ -116,16 +116,7 @@
     align-items: center;
     gap: 4px;
   }
-  .display-sep {
-    color: var(--dim);
-    font-size: 2rem;
-    font-weight: bold;
-    line-height: 1;
-    margin: 0 2px;
-    align-self: flex-end;
-    padding-bottom: 6px;
-  }
-  .digit-svg { display: block; }
+  .digit-svg { display: block; overflow: visible; }
 
   /* ── Status panel ───────────────────────────────────────────── */
   #status {
@@ -253,20 +244,16 @@
         <div class="display-row" id="primary-display">
           <svg class="digit-svg" id="d-th" width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-uh" width="34" height="58" viewBox="0 0 34 58"></svg>
-          <span class="display-sep">:</span>
           <svg class="digit-svg" id="d-tm" width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-um" width="34" height="58" viewBox="0 0 34 58"></svg>
-          <span class="display-sep">:</span>
           <svg class="digit-svg" id="d-ts" width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-us" width="34" height="58" viewBox="0 0 34 58"></svg>
         </div>
         <div class="display-row" id="secondary-display">
           <svg class="digit-svg" id="d-td"  width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-ud"  width="34" height="58" viewBox="0 0 34 58"></svg>
-          <span class="display-sep">/</span>
           <svg class="digit-svg" id="d-tmo" width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-umo" width="34" height="58" viewBox="0 0 34 58"></svg>
-          <span class="display-sep">/</span>
           <svg class="digit-svg" id="d-ty"  width="34" height="58" viewBox="0 0 34 58"></svg>
           <svg class="digit-svg" id="d-uy"  width="34" height="58" viewBox="0 0 34 58"></svg>
         </div>
@@ -361,15 +348,17 @@ const SEG_PATHS = {
   e:  "M0,29 L4,31 L4,53 L0,52 L1,29 Z",
   f:  "M0,6 L5,5 L5,25 L1,27 L0,26 Z",
   g:  "M5,27 L7,24 L27,24 L29,27 L27,30 L7,30 Z",
-  dp: "M29,54 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0",
+  dp: "M32,54 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0",
 };
 
 // Build the static SVG structure for a digit; returns a setter function.
 // Segments use fill-opacity so --seg-on color changes are reflected instantly.
-function buildDigit(svgEl) {
+// hasDp=false omits the decimal point segment entirely, for digits whose dp
+// LED is not physically present on the target hardware (see led_declarations.ads).
+function buildDigit(svgEl, hasDp = true) {
   const ns = "http://www.w3.org/2000/svg";
   const paths = {};
-  const names = ['a','b','c','d','e','f','g','dp'];
+  const names = hasDp ? ['a','b','c','d','e','f','g','dp'] : ['a','b','c','d','e','f','g'];
   names.forEach(name => {
     const p = document.createElementNS(ns, 'path');
     p.setAttribute('d', SEG_PATHS[name]);
@@ -383,6 +372,7 @@ function buildDigit(svgEl) {
     const vals = [ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7];
     const segNames = ['a','b','c','d','e','f','g','dp'];
     segNames.forEach((name, i) => {
+      if (!paths[name]) return; // dp omitted for this digit
       const intensity = ledIntensity(vals[i]);
       paths[name].setAttribute('fill-opacity', (0.08 + intensity * 0.92).toFixed(3));
     });
@@ -401,10 +391,14 @@ function buildDigit(svgEl) {
 //   Tens_Days => (Days_Drv, (8,9,10,11,12,13,14,15))   ← channels 8-15 = tens!
 //   Units_Days => (Days_Drv, (0,1,2,3,4,5,6,7))         ← channels 0-7 = units!
 // (opposite of primary where channels 0-7=tens, 8-15=units)
+//
+// Units_Seconds has no dp LED: that channel (Seconds_Drv, 15) is repurposed
+// as the ambient-light-sensor input (AL_Channel in led_declarations.ads), not
+// a display output, so it must not be rendered as a decimal point.
 
 const setters = {};
 ['th','uh','tm','um','ts','us','td','ud','tmo','umo','ty','uy'].forEach(id => {
-  setters[id] = buildDigit(document.getElementById('d-' + id));
+  setters[id] = buildDigit(document.getElementById('d-' + id), id !== 'us');
 });
 
 function applyDigit(setterId, leds_row, tens) {

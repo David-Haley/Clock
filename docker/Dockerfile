@@ -1,8 +1,16 @@
 FROM arm64v8/ubuntu:latest
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# TZ here is just a safe default for a non-interactive tzdata install at build
+# time; the actual simulator timezone is set per-run via `docker run -e TZ=...`
+# (see docker/run_sim.sh).
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
+
+RUN apt-get -o APT::Sandbox::Seccomp=false update \
+ && apt-get -o APT::Sandbox::Seccomp=false install -y --no-install-recommends \
     gnat gprbuild libgpiod-dev linux-libc-dev \
-    python3 python3-pip \
+    libmosquitto-dev \
+    tzdata \
+    python3 python3-pip make rsync \
  && pip3 install --break-system-packages websockets \
  && rm -rf /var/lib/apt/lists/*
 
