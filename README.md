@@ -122,12 +122,19 @@ The script blocks in the foreground. Ctrl-C stops it, or run `docker stop iot-cl
 - A Python WebSocket bridge (`web/bridge.py`) runs **inside** the container alongside Ada, communicating over loopback — this avoids Docker UDP NAT issues
 - Only TCP port 8765 (WebSocket) is forwarded to the host
 - `web/index.html` connects to `ws://localhost:8765` and renders the clock in the browser
+- The primary display shows local time, not UTC: `run_sim.sh` auto-detects the host's
+  timezone (from `$TZ`, `/etc/timezone`, or `/etc/localtime`) and passes it into the
+  container as `TZ`. Override it with `TZ=Region/City ./docker/run_sim.sh` if detection
+  ever picks the wrong zone (e.g. on a macOS host, or in CI)
 
 ### Troubleshooting
 
 - **Display not updating / all LEDs off:** Check `Error_Log.txt` in the Clock directory. A missing config file (most commonly `Brightness.csv`) causes the Ada main task to fail silently while child tasks keep running.
 - **Connection refused on port 8765:** The container may still be starting. Wait a few seconds and reload.
 - **Logs:** `docker logs iot-clock-sim` shows Ada stdout and bridge output.
+- **Primary display shows UTC instead of local time:** `run_sim.sh` prints the detected
+  timezone in its startup banner — if it says `Etc/UTC` unexpectedly, detection failed;
+  set it explicitly with `TZ=Region/City ./docker/run_sim.sh`.
 
 ## Runtime Configuration Files
 

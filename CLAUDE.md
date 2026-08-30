@@ -87,7 +87,10 @@ stubs from `src_sim/` to avoid GNAT interrupt-priority elaboration issues. It al
 `topic_editor`, `test_topic_manager` and `test_topic_management` alongside `iot_clock`. The
 image installs `libmosquitto-dev` for the MQTT client library, and `run_sim.sh` passes
 `--dns-search` so an MQTT broker referenced by short hostname in `Topic_Management.json`
-resolves from inside the container.
+resolves from inside the container. The container has no timezone of its own — the primary
+display uses `Ada.Calendar.Time_Zones.UTC_Time_Offset`, which follows the `TZ` env var —
+so `run_sim.sh` auto-detects the host's timezone (`$TZ` / `/etc/timezone` / `/etc/localtime`)
+and passes it as `-e TZ=...`; override with `TZ=Region/City ./docker/run_sim.sh`.
 
 ```bash
 # Build image and run (WebSocket bridge on ws://localhost:8765)
