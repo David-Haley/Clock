@@ -116,7 +116,7 @@
     align-items: center;
     gap: 4px;
   }
-  .digit-svg { display: block; }
+  .digit-svg { display: block; overflow: visible; }
 
   /* ── Status panel ───────────────────────────────────────────── */
   #status {
@@ -348,7 +348,7 @@ const SEG_PATHS = {
   e:  "M0,29 L4,31 L4,53 L0,52 L1,29 Z",
   f:  "M0,6 L5,5 L5,25 L1,27 L0,26 Z",
   g:  "M5,27 L7,24 L27,24 L29,27 L27,30 L7,30 Z",
-  dp: "M29,54 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0",
+  dp: "M32,54 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0",
 };
 
 // Build the static SVG structure for a digit; returns a setter function.
