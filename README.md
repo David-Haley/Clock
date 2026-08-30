@@ -6,6 +6,11 @@ Software for a clock based on purpose built hardware driven by a Raspberry Pi 3B
  The hardware suports automatic brightness control over a 4095 to one range with 64 levels of analogue brightness compensation to match the brightness of individual LEDs and segments.
  The clock can chime by playing arbitrary .wav files (uses amixer and aplay).
 
+ Every digit has a decimal point segment except the units-of-seconds digit: that position's
+ output (`Seconds_Drv` channel 15) is wired to the ambient light sensor input instead of an
+ LED, so it drives the automatic brightness system rather than a decimal point (see
+ `AL_Digit`/`AL_Channel` and the note on `Units_Seconds` in `src/led_declarations.ads`).
+
 ## Hardware Target
 
 The hardware binary targets a Raspberry Pi 3B running Raspberry Pi OS (Linux, aarch64). The physical clock is built around this platform. Other Pi models with compatible GPIO/SPI pin layouts may work, but have not been tested.

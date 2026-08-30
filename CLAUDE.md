@@ -56,7 +56,7 @@ Runs at 1 Hz for second-level time updates, with an inner loop at 8/16/60 Hz dep
 
 ### Hardware Abstraction
 - **`src/clock_driver.ads`** — Instantiates the generic `TLC5940` driver for 10 chips (160 channels total). This is the single point of hardware coupling.
-- **`src/led_declarations.ads`** — Maps logical display elements (digits, sweep LEDs, markers, ambient light sensor) to specific TLC5940 driver/channel indices. Change hardware wiring here.
+- **`src/led_declarations.ads`** — Maps logical display elements (digits, sweep LEDs, markers, ambient light sensor) to specific TLC5940 driver/channel indices. Change hardware wiring here. Note: `Units_Seconds`'s decimal-point channel (`Seconds_Drv`, channel 15) has no LED on the target hardware — it's repurposed as the `AL_Channel` ambient light sensor input, so it's the one digit with no decimal point (see the comment on `Units_Seconds` in `Display_Array`, and `web/index.html`'s `buildDigit(..., hasDp)`, which omits the simulator's dp graphic for that digit accordingly).
 
 ### Display System
 - **Primary display**: Hours:Minutes:Seconds on the first six digits
