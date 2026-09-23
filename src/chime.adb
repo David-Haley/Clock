@@ -6,8 +6,11 @@
 
 -- Author    : David Haley
 -- Created   : 28/03/2019
--- Last Edit : 30/05/2026
+-- Last Edit : 23/09/2026
 
+--  20260923: Chiming_Enabled reverted to initialise False; Chimes.csv was
+--  otherwise never read after boot unless chiming was disabled and
+--  re-enabled.
 --  20260530: Chiming corrected (reverted ?) and Chime_Enabled initialised True.
 --  20260528: Removal of circular elaboration.
 --  20260525: Compiler warnings removed.
@@ -94,7 +97,7 @@ package body Chime is
 
       Previous_File_Time : Time := Value ("2019-01-01 00:00:00");
       -- A time before the hardware existed!
-      Chiming_Enabled : Boolean := True;
+      Chiming_Enabled : Boolean := False;
       Chime_List : Chime_Lists := [others => Null_Unbounded_String];
       Current_Volume : Chime_Volumes := Default_Volume;
 
@@ -213,6 +216,9 @@ package body Chime is
 
       begin -- Chiming
          if not Chiming_Enabled then
+            -- Only reread configuration when chiming first enabled because
+            -- reading the external files is potentially time consuming and
+            -- could possibly cause clock to not update display on time!
             if Exists (Configuration_File_Name) then
                Read_Chime_List (Configuration_File_Name, Chime_List);
                Chiming_Enabled := True;
