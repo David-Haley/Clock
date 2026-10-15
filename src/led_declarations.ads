@@ -1,8 +1,9 @@
 -- this package declares the LED drivers and individual IO
 -- Author    : David Haley
 -- Created   : 28/06/2019
--- Last Edit : 23/09/2026
+-- Last Edit : 15/10/2026
 
+--  20261015: Buitt with updates SPI, GPIO and TCL5940 drivers.
 --  20260923: Startup issue with Chimes.csv not being read fixed.
 --  20260829: Secondary displey configuration now json format.
 --  20260605: Secondary_Display reporting of configuration file date and time
@@ -61,7 +62,7 @@ with TLC5940_Driver_Types; use TLC5940_Driver_Types;
 package LED_Declarations is
 
    subtype Version_String is String (1 .. 8);
-   Clock_Version : constant Version_String := "20260923";
+   Clock_Version : constant Version_String := "20261015";
 
    type LED_Drivers is (Sweep_00_14, Sweep_15_29, Sweep_30_44, Sweep_45_59,
                         Seconds_Drv, Minutes_Drv, Hours_Drv,
